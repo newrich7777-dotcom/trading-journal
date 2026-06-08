@@ -1003,7 +1003,7 @@ let currentFilter = 'all';
 let trades = [];
 
 // ════════════════════════════════════════
-// ⚙️  FIREBASE 설정 — 본인 프로젝트 값으로 교체
+// ⚙️  FIREBASE 설정
 // ════════════════════════════════════════
 const FB_CONFIG = {
   apiKey:            "AIzaSyBbuRNuyAVcH0n2r72puC-9Fb7yC2osFLk",
@@ -1014,20 +1014,35 @@ const FB_CONFIG = {
   appId:             "1:846026103556:web:449c6a9c56d76930410e51",
   measurementId:     "G-XJB3C67D30"
 };
-// ════════════════════════════════════════
 
-firebase.initializeApp(FB_CONFIG);
-const auth = firebase.auth();
-const db   = firebase.firestore();
-let currentUser = null;
+let auth, db, currentUser = null;
 
-// ── State ──
-const cState = {1:false,2:false,3:false,4:false,5:false};
-const sState = {'sb-rsi':false,'sb-tri':false};
-let formDir = null;
-let formPnl = null;
-let currentFilter = 'all';
-let trades = [];
+// Firebase 초기화 — 실패 시 로그인 화면 표시
+try {
+  firebase.initializeApp(FB_CONFIG);
+  auth = firebase.auth();
+  db   = firebase.firestore();
+} catch(e) {
+  console.error('Firebase 초기화 실패:', e);
+  showLoadingError();
+}
+
+// 5초 안에 auth 응답 없으면 강제로 로그인 화면 표시
+const authTimeout = setTimeout(() => {
+  const loading = document.getElementById('auth-loading');
+  const overlay = document.getElementById('auth-overlay');
+  if (loading && !loading.classList.contains('hidden')) {
+    loading.classList.add('hidden');
+    overlay.classList.remove('hidden');
+  }
+}, 5000);
+
+function showLoadingError() {
+  const loading = document.getElementById('auth-loading');
+  const overlay = document.getElementById('auth-overlay');
+  if (loading) loading.classList.add('hidden');
+  if (overlay) overlay.classList.remove('hidden');
+}
 
 // ── Firebase helpers ──
 function docRef() {
@@ -1092,6 +1107,7 @@ function confirmLogout() {
 }
 
 auth.onAuthStateChanged(async user => {
+  clearTimeout(authTimeout);
   const overlay  = document.getElementById('auth-overlay');
   const loading  = document.getElementById('auth-loading');
   const badge    = document.getElementById('user-badge');
