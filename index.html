@@ -1095,11 +1095,23 @@ function applyWeekPlan(p) {
 }
 
 // ── Auth ──
+function isInAppBrowser() {
+  const ua = navigator.userAgent;
+  return /KAKAOTALK|Instagram|FBAV|FBAN|Line|NAVER|Snapchat|Twitter|MicroMessenger/i.test(ua);
+}
+
 function signInGoogle() {
+  if (isInAppBrowser()) {
+    alert('⚠️ 카카오톡 등 앱 내 브라우저에서는 Google 로그인이 차단됩니다.\n\n크롬(Chrome) 브라우저를 직접 열고\n주소창에 아래 주소를 입력하세요:\n\ntrading-journal-pink-five.vercel.app');
+    return;
+  }
   const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider).catch(e => {
-    showToast('⚠️ 로그인 실패: ' + e.message);
-  });
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (isMobile) {
+    auth.signInWithRedirect(provider).catch(e => showToast('⚠️ 로그인 실패: ' + e.message));
+  } else {
+    auth.signInWithPopup(provider).catch(e => showToast('⚠️ 로그인 실패: ' + e.message));
+  }
 }
 
 function confirmLogout() {
