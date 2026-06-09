@@ -536,6 +536,71 @@ body::before {
   text-transform:uppercase; margin-top:8px;
 }
 .save-week-btn:hover { background:rgba(0,255,136,0.08); border-color:var(--accent); }
+
+/* ── Discipline ── */
+.disc-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.disc-chip {
+  background:var(--panel); border:1px solid var(--border);
+  border-radius:10px; padding:11px 12px; cursor:pointer;
+  font-size:11px; line-height:1.35; color:var(--muted2);
+  transition:all 0.18s; user-select:none; position:relative; overflow:hidden;
+  display:flex; align-items:center; gap:8px;
+  font-family:'Noto Sans KR',sans-serif; text-align:left;
+}
+.disc-chip .dot { width:7px; height:7px; border-radius:50%; background:var(--border2); flex-shrink:0; transition:all .18s; }
+.disc-chip.check.on { border-color:var(--accent); color:var(--text); background:rgba(0,255,136,0.06); }
+.disc-chip.check.on .dot { background:var(--accent); box-shadow:var(--glow); }
+.disc-chip.hard.on { border-color:var(--accent2); color:#ffd0d8; background:rgba(255,51,85,0.08); }
+.disc-chip.hard.on .dot { background:var(--accent2); box-shadow:var(--glow-red); }
+.disc-mini-label { font-size:10px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin:14px 0 8px; }
+
+.dday-card {
+  background:linear-gradient(135deg,var(--panel2),var(--panel));
+  border:1px solid var(--border2); border-radius:16px;
+  padding:20px 18px; text-align:center; margin-bottom:16px;
+}
+.dday-num { font-family:'Bebas Neue',cursive; font-size:54px; line-height:1; letter-spacing:3px; color:var(--accent); }
+.dday-label { font-size:10px; letter-spacing:3px; color:var(--muted); text-transform:uppercase; margin-top:6px; }
+.dday-bar { height:6px; background:var(--border); border-radius:3px; margin-top:14px; overflow:hidden; }
+.dday-bar-fill { height:100%; background:linear-gradient(90deg,var(--accent4),var(--accent)); border-radius:3px; transition:width .4s; }
+
+.disc-stat-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+.disc-stat-card { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px; text-align:center; }
+.disc-stat-label { font-size:10px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; }
+.disc-stat-val { font-family:'Bebas Neue',cursive; font-size:36px; letter-spacing:2px; margin-top:4px; }
+.disc-stat-val.good { color:var(--accent); }
+.disc-stat-val.warn { color:var(--accent3); }
+.disc-stat-val.bad  { color:var(--accent2); }
+.disc-stat-val.neu  { color:var(--muted2); }
+
+.disc-report {
+  background:var(--panel); border:1px dashed var(--border2);
+  border-radius:12px; padding:14px; font-size:12px; line-height:1.6;
+  color:var(--text); margin-bottom:10px; word-break:keep-all;
+}
+.copy-btn {
+  display:block; width:100%; padding:12px; background:transparent;
+  border:1px solid rgba(68,136,255,0.3); border-radius:10px; color:var(--accent4);
+  font-size:11px; letter-spacing:2px; cursor:pointer; text-transform:uppercase;
+  font-family:'Noto Sans KR',sans-serif; transition:all .2s;
+}
+.copy-btn:hover { background:rgba(68,136,255,0.08); }
+
+.disc-badge { display:inline-flex; align-items:center; gap:3px; font-size:10px; padding:2px 7px; border-radius:6px; }
+.disc-badge.good { background:rgba(0,255,136,0.12); color:var(--accent); }
+.disc-badge.warn { background:rgba(255,170,0,0.12); color:var(--accent3); }
+.disc-badge.bad  { background:rgba(255,51,85,0.14); color:var(--accent2); }
+
+.week-list-item {
+  display:flex; justify-content:space-between; align-items:center;
+  background:var(--panel); border:1px solid var(--border);
+  border-radius:10px; padding:12px 14px; margin-bottom:6px; font-size:12px;
+}
+.start-input {
+  width:100%; padding:11px 14px; background:var(--panel2);
+  border:1px solid var(--border); border-radius:10px; color:var(--text);
+  font-family:'Noto Sans KR',sans-serif; font-size:13px;
+}
 </style>
 </head>
 <body>
@@ -578,6 +643,7 @@ body::before {
       <button class="nav-tab active" onclick="goPage('checklist')">체크리스트</button>
       <button class="nav-tab" onclick="goPage('entry')">진입 기록</button>
       <button class="nav-tab" onclick="goPage('history')">히스토리</button>
+      <button class="nav-tab" onclick="goPage('disc')">90일</button>
     </div>
   </div>
 </nav>
@@ -942,6 +1008,29 @@ body::before {
     </div>
   </div>
 
+  <div class="sec">
+    <div class="sec-title">⚖️ 디시플린 점검</div>
+    <div class="disc-mini-label">지킨 항목 (탭하여 체크)</div>
+    <div class="disc-grid">
+      <div class="disc-chip check" data-group="check" data-key="checklistDone" onclick="toggleDisc(this)"><span class="dot"></span>체크리스트 통과 후 진입</div>
+      <div class="disc-chip check" data-group="check" data-key="waitedForSetup" onclick="toggleDisc(this)"><span class="dot"></span>셋업 충족 후 진입(선취X)</div>
+      <div class="disc-chip check" data-group="check" data-key="notFomo" onclick="toggleDisc(this)"><span class="dot"></span>포모 추격 아님</div>
+      <div class="disc-chip check" data-group="check" data-key="rrOk" onclick="toggleDisc(this)"><span class="dot"></span>손익비 2.0 이상</div>
+      <div class="disc-chip check" data-group="check" data-key="planEntrySize" onclick="toggleDisc(this)"><span class="dot"></span>계획대로 진입가·사이즈</div>
+      <div class="disc-chip check" data-group="check" data-key="planExit" onclick="toggleDisc(this)"><span class="dot"></span>계획대로 청산</div>
+      <div class="disc-chip check" data-group="check" data-key="loggedAfter" onclick="toggleDisc(this)"><span class="dot"></span>직후 기록 작성</div>
+    </div>
+    <div class="disc-mini-label" style="color:var(--accent2)">하드룰 위반 (어긴 것만 탭 · 1개라도 0점)</div>
+    <div class="disc-grid">
+      <div class="disc-chip hard" data-group="hard" data-key="drunk" onclick="toggleDisc(this)"><span class="dot"></span>음주·피로 상태 매매</div>
+      <div class="disc-chip hard" data-group="hard" data-key="addedToLoser" onclick="toggleDisc(this)"><span class="dot"></span>물타기(손실 추가진입)</div>
+      <div class="disc-chip hard" data-group="hard" data-key="noPlan" onclick="toggleDisc(this)"><span class="dot"></span>진입·손절·목표 미설정</div>
+      <div class="disc-chip hard" data-group="hard" data-key="stopNotHonored" onclick="toggleDisc(this)"><span class="dot"></span>손절 변경/미실행</div>
+      <div class="disc-chip hard" data-group="hard" data-key="overRisk" onclick="toggleDisc(this)"><span class="dot"></span>시드 <span id="lbl-risk">3</span>% 초과 베팅</div>
+      <div class="disc-chip hard" data-group="hard" data-key="overDailyLoss" onclick="toggleDisc(this)"><span class="dot"></span>일 손실 <span id="lbl-dll">한도</span> 초과 매매</div>
+    </div>
+  </div>
+
   <button class="submit-btn" onclick="saveTrade()">기록 저장</button>
 
 </div>
@@ -990,6 +1079,39 @@ body::before {
 </div>
 </div>
 
+<!-- ══════════════════════════════════
+     PAGE 4: 90-DAY DISCIPLINE
+═══════════════════════════════════ -->
+<div class="page" id="page-disc">
+<div class="page-inner">
+
+  <div class="page-header">
+    <div class="page-label">90-Day Discipline</div>
+    <div class="page-title">90일 챌린지</div>
+    <div class="page-sub">점수는 수익이 아니라 '규칙 준수' · 목표 준수율 95%</div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">챌린지 설정</div>
+    <label class="form-label" style="display:block;margin-bottom:6px">시작일 (D-day)</label>
+    <input type="date" id="disc-start" class="start-input" onchange="setChallengeStart(this.value)" style="margin-bottom:14px">
+    <div class="disc-grid">
+      <div>
+        <label class="form-label" style="display:block;margin-bottom:6px">1회 리스크 한도 (시드 %)</label>
+        <input type="number" id="cfg-risk" class="start-input" step="0.5" min="0" placeholder="3" onchange="setRiskCfg()">
+      </div>
+      <div>
+        <label class="form-label" style="display:block;margin-bottom:6px">1일 손실 한도 (USD)</label>
+        <input type="number" id="cfg-dll" class="start-input" min="0" placeholder="예: 200" onchange="setRiskCfg()">
+      </div>
+    </div>
+  </div>
+
+  <div id="disc-body"></div>
+
+</div>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -1001,6 +1123,29 @@ let formDir = null;
 let formPnl = null;
 let currentFilter = 'all';
 let trades = [];
+let challengeStart = null;
+let riskPct = 3;
+let dailyLossLimit = null;
+let discState = { check:{}, hard:{} };
+
+// ── Discipline 규칙 정의 ──
+const HARD_RULES = {
+  drunk:"음주·피로 상태 매매", addedToLoser:"물타기", noPlan:"진입·손절·목표 미설정",
+  stopNotHonored:"손절 변경/미실행", overRisk:"시드 3% 초과", overDailyLoss:"일 손실한도 초과 매매"
+};
+const CHECK_RULES = {
+  checklistDone:"체크리스트 통과 후 진입", waitedForSetup:"셋업 충족 후 진입", notFomo:"포모 추격 아님",
+  rrOk:"손익비 2.0+", planEntrySize:"계획대로 진입", planExit:"계획대로 청산", loggedAfter:"직후 기록"
+};
+// 단일 거래 준수율 (하드룰 위반 시 0 / 기록 없는 과거거래는 null)
+function tradeDiscScore(t){
+  if(!t.hard || !t.check) return null;
+  const hv = Object.keys(HARD_RULES).filter(k=>t.hard[k]).length;
+  if(hv>0) return 0;
+  const ks = Object.keys(CHECK_RULES);
+  return Math.round(ks.filter(k=>t.check[k]).length / ks.length * 100);
+}
+function hardViolCount(t){ return t.hard ? Object.keys(HARD_RULES).filter(k=>t.hard[k]).length : 0; }
 
 // ════════════════════════════════════════
 // ⚙️  FIREBASE 설정
@@ -1056,6 +1201,10 @@ async function fbLoad() {
       const d = snap.data();
       trades = d.trades || [];
       applyWeekPlan(d.weekplan || {});
+      challengeStart = (d.config && d.config.challengeStart) || null;
+      riskPct = (d.config && d.config.riskPct) || 3;
+      dailyLossLimit = (d.config && d.config.dailyLossLimit) || null;
+      updateRuleLabels();
     }
   } catch(e) { console.error('fbLoad:', e); }
 }
@@ -1069,6 +1218,7 @@ async function fbSave() {
         return rest;
       }),
       weekplan: getWeekPlanData(),
+      config: { challengeStart, riskPct, dailyLossLimit },
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
     await docRef().set(payload, { merge: true });
@@ -1265,10 +1415,11 @@ function goPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
-  const idx = {weekly:0,checklist:1,entry:2,history:3}[name];
+  const idx = {weekly:0,checklist:1,entry:2,history:3,disc:4}[name];
   document.querySelectorAll('.nav-tab')[idx].classList.add('active');
   if (name==='history') renderHistory();
   if (name==='weekly') updateWeekProgress();
+  if (name==='disc') renderDiscipline();
 }
 
 // ── Weekly Plan ──
@@ -1374,7 +1525,7 @@ function updateResult() {
   r.className='result';
   if (total===5) {
     r.classList.add('go');
-    r.innerHTML=`<span class="result-emoji">🟢</span><div class="result-title">진입 가능</div><div class="result-desc">모든 조건 충족<br><strong style="color:var(--accent)">진입 허가</strong><br><br><span style="font-size:11px;opacity:.7">시드의 3% 이내 / 손절 절대 변경 금지</span></div>`;
+    r.innerHTML=`<span class="result-emoji">🟢</span><div class="result-title">진입 가능</div><div class="result-desc">모든 조건 충족<br><strong style="color:var(--accent)">진입 허가</strong><br><br><span style="font-size:11px;opacity:.7">시드의 ${riskPct}% 이내 / 손절 절대 변경 금지</span></div>`;
   } else if (total===0) {
     r.classList.add('default');
     r.innerHTML=`<span class="result-emoji">📋</span><div class="result-title">대기 중</div><div class="result-desc">체크리스트를 순서대로 확인하세요</div>`;
@@ -1456,6 +1607,14 @@ async function saveTrade() {
     psych: document.getElementById('f-psych').value,
     chart: chartBase64 || null,
   };
+  // ── 디시플린 기록 ──
+  const hard = { ...discState.hard };
+  if (trade.psych === 'Drunken ⚠️') hard.drunk = true;       // 음주 매매 자동 위반
+  const check = { ...discState.check };
+  if (trade.basis && trade.reflect) check.loggedAfter = true; // 근거+반성 작성 시 자동 체크
+  trade.hard = hard;
+  trade.check = check;
+  trade.discScore = tradeDiscScore(trade);
   trades.unshift(trade);
   // 차트는 localStorage, 나머지는 Firebase
   if (chartBase64) saveChartLocally(id, chartBase64);
@@ -1481,6 +1640,7 @@ function resetForm() {
   formDir=null; formPnl=null;
   clearChart();
   document.querySelectorAll('.dir-btn,.pnl-btn').forEach(b=>b.classList.remove('active'));
+  resetDiscChips();
 }
 
 // ── History ──
@@ -1511,6 +1671,8 @@ function renderHistory() {
 
   list.innerHTML = filtered.map(t=>{
     const emoji = {profit:'🟢',loss:'🔴',be:'🟡'}[t.result]||'';
+    const ds = tradeDiscScore(t);
+    const dsBadge = ds===null ? '' : `<span class="disc-badge ${ds>=80?'good':ds>=50?'warn':'bad'}">${hardViolCount(t)>0?'⚠ ':''}준수 ${ds}%</span>`;
     const pnlStr = t.pnl ? (t.pnl>0?'+':'')+parseFloat(t.pnl).toFixed(0) : '-';
     const entryStr = (t.entry || t.entryTime) ? `${t.entry||''}${t.entryTime ? ' @ '+t.entryTime : ''}` : '';
     const exitStr  = (t.exit  || t.exitTime)  ? `${t.exit ||''}${t.exitTime  ? ' @ '+t.exitTime  : ''}` : '';
@@ -1533,6 +1695,7 @@ function renderHistory() {
         <span class="trade-tag">${t.type}</span>
         ${timeTag}
         ${t.psych?`<span class="trade-tag">${t.psych}</span>`:''}
+        ${dsBadge}
       </div>
       ${(t.basis||t.reflect||t.chart||entryStr||exitStr)?`
       <div class="trade-note">
@@ -1560,6 +1723,119 @@ async function deleteTrade(e, id) {
   await fbSave();
   showToast('삭제 완료');
   renderHistory();
+}
+
+// ── Discipline ──
+function toggleDisc(el){
+  const g = el.dataset.group, k = el.dataset.key;
+  discState[g][k] = !discState[g][k];
+  el.classList.toggle('on', discState[g][k]);
+  addRipple(el);
+}
+function resetDiscChips(){
+  discState = { check:{}, hard:{} };
+  document.querySelectorAll('.disc-chip').forEach(c=>c.classList.remove('on'));
+}
+function setChallengeStart(v){
+  challengeStart = v || null;
+  if(currentUser) fbSave();
+  renderDiscipline();
+}
+function setRiskCfg(){
+  const rp = parseFloat(document.getElementById('cfg-risk').value);
+  const dl = parseFloat(document.getElementById('cfg-dll').value);
+  riskPct = (!isNaN(rp) && rp>0) ? rp : 3;
+  dailyLossLimit = (!isNaN(dl) && dl>0) ? dl : null;
+  updateRuleLabels();
+  if(currentUser) fbSave();
+  showToast('✓ 리스크 한도 저장');
+}
+function updateRuleLabels(){
+  HARD_RULES.overRisk = `시드 ${riskPct}% 초과`;
+  HARD_RULES.overDailyLoss = dailyLossLimit ? `일 손실 $${dailyLossLimit} 초과` : '일 손실한도 초과';
+  const r = document.getElementById('lbl-risk'); if(r) r.textContent = riskPct;
+  const d = document.getElementById('lbl-dll'); if(d) d.textContent = dailyLossLimit ? `$${dailyLossLimit}` : '한도';
+}
+function copyReport(txt){
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(txt).then(()=>showToast('✓ 보고 문구 복사됨')).catch(()=>showToast('⚠️ 복사 실패'));
+  } else { showToast('⚠️ 복사 미지원 브라우저'); }
+}
+function weekNumberFromStart(date){
+  if(!challengeStart) return null;
+  const start = new Date(challengeStart); start.setHours(0,0,0,0);
+  const d = new Date(date); d.setHours(0,0,0,0);
+  const diff = Math.floor((d - start)/(1000*60*60*24));
+  return diff < 0 ? null : Math.floor(diff/7)+1;
+}
+function renderDiscipline(){
+  const startInput = document.getElementById('disc-start');
+  if(startInput && challengeStart) startInput.value = challengeStart;
+  const ri = document.getElementById('cfg-risk'); if(ri) ri.value = riskPct;
+  const di = document.getElementById('cfg-dll'); if(di) di.value = dailyLossLimit || '';
+  updateRuleLabels();
+  const body = document.getElementById('disc-body');
+  if(!body) return;
+  if(!challengeStart){
+    body.innerHTML = `<div class="disc-report">위에서 <strong>챌린지 시작일</strong>을 정하면 90일 카운트다운과 준수율 추적이 시작됩니다. 수능 D-day처럼 날짜를 박으세요.</div>`;
+    return;
+  }
+  const start = new Date(challengeStart); start.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const elapsed = Math.floor((today - start)/(1000*60*60*24)) + 1;
+  const dayN = Math.min(Math.max(elapsed,0),90);
+  const remaining = Math.max(90 - elapsed, 0);
+  const progress = Math.min(100, Math.max(0, elapsed/90*100));
+
+  const cls = v => v===null?'neu':v>=95?'good':v>=80?'warn':'bad';
+  const { mon, sun } = getThisWeekRange();
+  const scored = trades.filter(t=>tradeDiscScore(t)!==null);
+
+  const weekT = scored.filter(t=>{const d=new Date(t.date); return d>=mon&&d<=sun;});
+  const weekAdh = weekT.length ? Math.round(weekT.reduce((s,t)=>s+tradeDiscScore(t),0)/weekT.length) : null;
+  const weekHard = weekT.reduce((s,t)=>s+hardViolCount(t),0);
+
+  const allT = scored.filter(t=>new Date(t.date)>=start);
+  const allAdh = allT.length ? Math.round(allT.reduce((s,t)=>s+tradeDiscScore(t),0)/allT.length) : null;
+  const allHard = allT.reduce((s,t)=>s+hardViolCount(t),0);
+
+  // 가족 보고 문구
+  const wkNo = weekNumberFromStart(today) || '-';
+  const breaches = {};
+  weekT.forEach(t=>Object.keys(HARD_RULES).forEach(k=>{ if(t.hard&&t.hard[k]) breaches[k]=(breaches[k]||0)+1; }));
+  const bStr = Object.keys(breaches).length ? Object.entries(breaches).map(([k,n])=>`${HARD_RULES[k]} ${n}`).join(', ') : '없음';
+  const report = `[${wkNo}주차] 준수율 ${weekAdh===null?'거래없음':weekAdh+'%'} · 하드룰 위반 ${weekHard}회 (${bStr}) · 거래 ${weekT.length}건`;
+
+  // 주차별 추이
+  const weekMap = {};
+  allT.forEach(t=>{ const wn=weekNumberFromStart(t.date); if(wn===null) return; (weekMap[wn]=weekMap[wn]||[]).push(t); });
+  const weekRows = Object.keys(weekMap).sort((a,b)=>b-a).map(wn=>{
+    const arr=weekMap[wn];
+    const adh=Math.round(arr.reduce((s,t)=>s+tradeDiscScore(t),0)/arr.length);
+    const hv=arr.reduce((s,t)=>s+hardViolCount(t),0);
+    return `<div class="week-list-item"><span>${wn}주차 · ${arr.length}건</span><span><span class="disc-badge ${cls(adh)}">${adh}%</span>${hv>0?` <span class="disc-badge bad">⚠ ${hv}</span>`:''}</span></div>`;
+  }).join('') || `<div class="disc-report" style="border-style:solid">아직 집계된 거래가 없습니다. 진입 기록에 디시플린 점검을 체크해 저장하면 자동 반영됩니다.</div>`;
+
+  body.innerHTML = `
+    <div class="dday-card">
+      <div class="dday-num">D-${remaining}</div>
+      <div class="dday-label">${dayN}일차 / 90일</div>
+      <div class="dday-bar"><div class="dday-bar-fill" style="width:${progress}%"></div></div>
+    </div>
+    <div class="disc-stat-row">
+      <div class="disc-stat-card"><div class="disc-stat-label">이번주 준수율</div><div class="disc-stat-val ${cls(weekAdh)}">${weekAdh===null?'-':weekAdh+'%'}</div></div>
+      <div class="disc-stat-card"><div class="disc-stat-label">이번주 하드룰</div><div class="disc-stat-val ${weekHard>0?'bad':'good'}">${weekHard}</div></div>
+    </div>
+    <div class="disc-stat-row">
+      <div class="disc-stat-card"><div class="disc-stat-label">누적 준수율 (목표95%)</div><div class="disc-stat-val ${cls(allAdh)}">${allAdh===null?'-':allAdh+'%'}</div></div>
+      <div class="disc-stat-card"><div class="disc-stat-label">누적 하드룰 위반</div><div class="disc-stat-val ${allHard>0?'bad':'good'}">${allHard}</div></div>
+    </div>
+    <div class="sec-title" style="margin-top:6px">가족 주간 보고 (일요일 밤)</div>
+    <div class="disc-report">${report}</div>
+    <button class="copy-btn" onclick='copyReport(${JSON.stringify(report)})'>📋 보고 문구 복사</button>
+    <div class="sec-title" style="margin-top:20px">주차별 추이</div>
+    ${weekRows}
+  `;
 }
 
 // ── Utils ──
