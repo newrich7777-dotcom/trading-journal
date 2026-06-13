@@ -1481,6 +1481,45 @@ function showLoadingError() {
 function docRef() {
   return db.collection('users').doc(currentUser.uid).collection('journal').doc('data');
 }
+// 차트는 매매 1건당 별도 문서로 저장 (문서당 1MB 한도 회피)
+function chartsColRef() {
+  return db.collection('users').doc(currentUser.uid).collection('charts');
+}
+function chartDocRef(id) {
+  return chartsColRef().doc(String(id));
+}
+
+// 차트 1건 클라우드 저장/삭제 (localStorage 캐시도 동기 갱신)
+async function saveChartCloud(id, base64arr) {
+  saveChartLocally(id, (base64arr && base64arr.length) ? base64arr : null);
+  if (!currentUser) return;
+  try {
+    if (base64arr && base64arr.length) {
+      await chartDocRef(id).set({ images: base64arr });
+    } else {
+      await chartDocRef(id).delete();
+    }
+  } catch(e) { console.error('saveChartCloud:', e); }
+}
+
+// 로그인 시 클라우드 차트 전체를 불러와 trades에 병합 + 로컬 캐시 갱신
+async function mergeCloudCharts() {
+  if (!currentUser) return;
+  try {
+    const snap = await chartsColRef().get();
+    if (snap.empty) return;
+    const map = {};
+    snap.forEach(doc => {
+      const imgs = doc.data().images;
+      if (imgs && imgs.length) map[doc.id] = imgs;
+    });
+    trades = trades.map(t => {
+      const imgs = map[String(t.id)];
+      return imgs ? { ...t, charts: imgs } : t;
+    });
+    try { localStorage.setItem('ljh-charts', JSON.stringify(map)); } catch(e) {}
+  } catch(e) { console.error('mergeCloudCharts:', e); }
+}
 
 async function fbLoad() {
   try {
@@ -1576,10 +1615,11 @@ auth.onAuthStateChanged(async user => {
     const _now = new Date();
     document.getElementById('f-entry-dt').value = new Date(_now.getTime() - _now.getTimezoneOffset()*60000).toISOString().slice(0,16);
     await fbLoad();
-    // 차트 이미지는 로컬에서 복원
+    // 1) 로컬 캐시로 즉시 표시 → 2) 클라우드 차트 병합 후 재렌더
     mergeLocalCharts();
     renderHistory();
     loadWeekPlan();
+    mergeCloudCharts().then(renderHistory);
   } else {
     currentUser = null;
     badge.classList.add('hidden');
@@ -1672,14 +1712,12 @@ function importJSON(input) {
       }
       trades = data.trades;
       // 차트를 localStorage로 복원
-      try {
-        const map = {};
-        trades.forEach(t => {
-          const imgs = (t.charts && t.charts.length) ? t.charts : (t.chart ? [t.chart] : []);
-          if (imgs.length) map[t.id] = imgs;
-        });
-        localStorage.setItem('ljh-charts', JSON.stringify(map));
-      } catch(err) {}
+      const chartMap = {};
+      trades.forEach(t => {
+        const imgs = (t.charts && t.charts.length) ? t.charts : (t.chart ? [t.chart] : []);
+        if (imgs.length) chartMap[String(t.id)] = imgs;
+      });
+      try { localStorage.setItem('ljh-charts', JSON.stringify(chartMap)); } catch(err) {}
       if (data.weekplan) applyWeekPlan(data.weekplan);
       if (data.config) {
         challengeStart = data.config.challengeStart || null;
@@ -1689,6 +1727,11 @@ function importJSON(input) {
       }
       mergeLocalCharts();
       await fbSave();
+      // 차트도 클라우드로 복원
+      try {
+        await Promise.all(Object.entries(chartMap).map(([id, imgs]) =>
+          chartDocRef(id).set({ images: imgs })));
+      } catch(err) { console.error('import charts:', err); }
       renderHistory();
       loadWeekPlan();
       renderDiscipline();
@@ -2227,8 +2270,8 @@ async function saveTrade() {
   trade.check = check;
   trade.discScore = tradeDiscScore(trade);
   trades.unshift(trade);
-  // 차트는 localStorage, 나머지는 Firebase
-  if (chartBase64s.length) saveChartLocally(id, [...chartBase64s]);
+  // 차트는 별도 Firestore 문서(+로컬 캐시), 나머지는 단일 문서
+  if (chartBase64s.length) await saveChartCloud(id, [...chartBase64s]);
   showToast('저장 중...');
   await fbSave();
   showToast('✓ 저장 완료 (동기화됨)');
@@ -2376,7 +2419,7 @@ async function deleteTrade(e, id) {
   e.stopPropagation();
   if (!confirm('이 기록을 삭제하시겠습니까?')) return;
   trades = trades.filter(t=>t.id!==id);
-  saveChartLocally(id, null);
+  await saveChartCloud(id, null);
   await fbSave();
   showToast('삭제 완료');
   renderHistory();
