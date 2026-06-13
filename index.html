@@ -215,6 +215,11 @@ body::before {
 .form-input::placeholder, .form-textarea::placeholder { color:var(--muted); }
 .form-select option { background:var(--panel); color:var(--text); }
 .form-textarea { resize:vertical; min-height:72px; line-height:1.5; }
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(1); opacity: 0.6; cursor: pointer;
+}
 
 /* Direction toggle */
 .dir-toggle { display:flex; gap:8px; }
@@ -1019,10 +1024,6 @@ body::before {
     <div class="sec-title">기본 정보</div>
     <div class="form-grid">
       <div class="form-group">
-        <label class="form-label">날짜</label>
-        <input class="form-input" type="date" id="f-date">
-      </div>
-      <div class="form-group">
         <label class="form-label">종목</label>
         <select class="form-select" id="f-symbol">
           <option value="BTCUSDT.P">BTC</option>
@@ -1071,14 +1072,16 @@ body::before {
         <input class="form-input" type="number" id="f-exit" placeholder="0.00">
       </div>
     </div>
-    <div class="form-grid" style="margin-top:10px">
+    <div class="form-grid full" style="margin-top:10px">
       <div class="form-group">
-        <label class="form-label">진입 시간</label>
-        <input class="form-input" type="time" id="f-entry-time" oninput="calcDuration()">
+        <label class="form-label">진입 일시</label>
+        <input class="form-input" type="datetime-local" id="f-entry-dt" oninput="calcDuration()">
       </div>
+    </div>
+    <div class="form-grid full" style="margin-top:10px">
       <div class="form-group">
-        <label class="form-label">청산 시간</label>
-        <input class="form-input" type="time" id="f-exit-time" oninput="calcDuration()">
+        <label class="form-label">청산 일시</label>
+        <input class="form-input" type="datetime-local" id="f-exit-dt" oninput="calcDuration()">
       </div>
     </div>
     <div id="duration-display" style="display:none;margin-top:8px;padding:10px 14px;background:rgba(68,136,255,0.08);border:1px solid rgba(68,136,255,0.25);border-radius:8px;text-align:center">
@@ -1433,7 +1436,8 @@ auth.onAuthStateChanged(async user => {
     badge.classList.remove('hidden');
     overlay.classList.add('hidden');
     loading.classList.add('hidden');
-    document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+    const _now = new Date();
+    document.getElementById('f-entry-dt').value = new Date(_now.getTime() - _now.getTimezoneOffset()*60000).toISOString().slice(0,16);
     await fbLoad();
     // 차트 이미지는 로컬에서 복원
     mergeLocalCharts();
@@ -1809,15 +1813,15 @@ function resetChecks() {
 
 // ── Duration calculator ──
 function calcDuration() {
-  const et = document.getElementById('f-entry-time').value;
-  const xt = document.getElementById('f-exit-time').value;
+  const ev = document.getElementById('f-entry-dt').value;
+  const xv = document.getElementById('f-exit-dt').value;
   const disp = document.getElementById('duration-display');
   const val  = document.getElementById('duration-val');
-  if (!et || !xt) { disp.style.display='none'; return; }
-  const [eh,em] = et.split(':').map(Number);
-  const [xh,xm] = xt.split(':').map(Number);
-  let mins = (xh*60+xm) - (eh*60+em);
-  if (mins < 0) mins += 1440; // 날짜 넘어가는 경우
+  if (!ev || !xv) { disp.style.display='none'; return; }
+  const entryMs = new Date(ev).getTime();
+  const exitMs  = new Date(xv).getTime();
+  let mins = Math.round((exitMs - entryMs) / 60000);
+  if (mins <= 0) { disp.style.display='none'; return; }
   const h = Math.floor(mins/60);
   const m = mins%60;
   const label = h>0 ? `${h}시간 ${m}분` : `${m}분`;
@@ -1846,11 +1850,15 @@ function setPnl(p) {
 
 // ── Save trade ──
 async function saveTrade() {
-  const date = document.getElementById('f-date').value;
+  const entryDt = document.getElementById('f-entry-dt').value;
   const symbol = document.getElementById('f-symbol').value;
-  if (!date || !symbol || !formDir || !formPnl) {
+  if (!entryDt || !symbol || !formDir || !formPnl) {
     showToast('⚠️ 필수 항목을 입력하세요'); return;
   }
+  const date = entryDt.split('T')[0];
+  const entryTime = entryDt.split('T')[1]?.slice(0,5) || '';
+  const exitDtVal = document.getElementById('f-exit-dt').value;
+  const exitTime = exitDtVal ? exitDtVal.split('T')[1]?.slice(0,5) : '';
   const id = Date.now();
   const trade = {
     id, date, symbol,
@@ -1858,9 +1866,9 @@ async function saveTrade() {
     type: document.getElementById('f-type').value,
     dir: formDir,
     entry: document.getElementById('f-entry').value,
-    entryTime: document.getElementById('f-entry-time').value,
+    entryTime,
     exit: document.getElementById('f-exit').value,
-    exitTime: document.getElementById('f-exit-time').value,
+    exitTime,
     duration: getDurationStr(),
     seed: document.getElementById('f-seed').value,
     pnl: document.getElementById('f-pnl').value,
@@ -1892,11 +1900,12 @@ async function saveTrade() {
 }
 
 function resetForm() {
-  document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const localDt = new Date(now.getTime() - now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  document.getElementById('f-entry-dt').value = localDt;
+  document.getElementById('f-exit-dt').value = '';
   document.getElementById('f-entry').value='';
-  document.getElementById('f-entry-time').value='';
   document.getElementById('f-exit').value='';
-  document.getElementById('f-exit-time').value='';
   document.getElementById('duration-display').style.display='none';
   document.getElementById('f-seed').value='';
   document.getElementById('f-pnl').value='';
