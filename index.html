@@ -48,48 +48,102 @@ body::before {
   pointer-events:none; z-index:0;
 }
 
-/* ── Nav ── */
+/* ── Sidebar Nav ── */
+:root { --sidebar:200px; }
+
 .nav {
-  position:sticky; top:0; z-index:100;
-  background:rgba(7,7,14,0.85);
-  backdrop-filter:blur(20px);
-  border-bottom:1px solid rgba(255,255,255,0.06);
-  padding:0 32px;
+  position:fixed; top:0; left:0; bottom:0;
+  width:var(--sidebar); z-index:100;
+  background:rgba(7,7,14,0.97);
+  backdrop-filter:blur(24px);
+  border-right:1px solid rgba(255,255,255,0.06);
+  display:flex; flex-direction:column;
 }
 .nav-inner {
-  max-width:1100px; margin:0 auto;
-  display:flex; align-items:center; gap:0;
+  display:flex; flex-direction:column;
+  height:100%;
 }
 .nav-logo {
   font-family:'Bebas Neue',cursive;
-  font-size:20px; letter-spacing:4px;
-  color:var(--accent); padding:16px 24px 16px 0;
-  border-right:1px solid var(--border2);
-  margin-right:16px; white-space:nowrap;
-  text-shadow: 0 0 20px rgba(0,255,136,0.4);
+  font-size:20px; letter-spacing:5px;
+  color:var(--accent);
+  padding:24px 20px 18px;
+  border-bottom:1px solid var(--border2);
+  text-shadow:0 0 20px rgba(0,255,136,0.4);
+  white-space:nowrap; flex-shrink:0;
 }
-.nav-tabs { display:flex; flex:1; }
+.nav-logo span { display:block; font-size:9px; letter-spacing:3px; color:var(--muted); margin-top:2px; font-family:'Noto Sans KR',sans-serif; }
+.nav-tabs {
+  display:flex; flex-direction:column;
+  flex:1; padding:10px 0;
+  overflow-y:auto;
+}
 .nav-tab {
-  flex:1; padding:16px 12px;
-  font-size:10px; letter-spacing:2px;
-  color:var(--muted); text-align:center;
-  cursor:pointer; transition:all 0.2s;
-  border-bottom:2px solid transparent;
-  position:relative; top:1px;
+  width:100%; padding:11px 20px;
+  font-size:11px; letter-spacing:1.5px;
+  color:var(--muted); text-align:left;
+  cursor:pointer; transition:all 0.18s;
+  border-left:2px solid transparent;
+  border-top:none; border-right:none; border-bottom:none;
   text-transform:uppercase;
-  background:none; border-top:none; border-left:none; border-right:none;
+  background:none;
   font-family:'Noto Sans KR',sans-serif;
+  white-space:nowrap;
 }
-.nav-tab:hover { color:var(--text); }
-.nav-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.nav-tab:hover { color:var(--text); background:rgba(255,255,255,0.03); }
+.nav-tab.active { color:var(--accent); border-left-color:var(--accent); background:rgba(0,255,136,0.05); }
+.nav-divider { height:1px; background:var(--border); margin:8px 16px; opacity:0.5; }
+
+.nav-bottom {
+  padding:14px 16px; border-top:1px solid var(--border2); flex-shrink:0;
+}
+/* user-badge repositioned inside sidebar bottom */
+.user-badge {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 10px; border-radius:10px;
+  background:var(--panel2); border:1px solid var(--border);
+  cursor:pointer; transition:border-color 0.2s;
+}
+.user-badge:hover { border-color:var(--accent2); }
+.user-badge.hidden { display:none; }
+.user-avatar { width:26px; height:26px; border-radius:50%; background:var(--border2); overflow:hidden; flex-shrink:0; }
+.user-avatar img { width:100%; height:100%; object-fit:cover; }
+#user-name { font-size:11px; color:var(--text); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* ── Pages ── */
 .page { display:none; }
 .page.active { display:block; }
 .page-inner {
-  max-width:1100px; margin:0 auto;
+  max-width:960px; margin:0 auto;
   padding:36px 32px 80px;
   position:relative; z-index:1;
+}
+
+/* ── Content area offset ── */
+.main-content { margin-left:var(--sidebar); min-height:100vh; }
+@media(max-width:768px) { .main-content { margin-left:0; } }
+
+/* ── Mobile: bottom tab bar ── */
+@media (max-width:768px) {
+  :root { --sidebar:0px; }
+  .nav {
+    top:auto; left:0; right:0; bottom:0; width:100%;
+    height:56px; flex-direction:row;
+    border-right:none; border-top:1px solid rgba(255,255,255,0.08);
+  }
+  .nav-inner { flex-direction:row; height:100%; align-items:stretch; }
+  .nav-logo { display:none; }
+  .nav-tabs { flex-direction:row; overflow-x:auto; overflow-y:hidden; padding:0; flex:1; }
+  .nav-tab {
+    flex:1; min-width:52px; padding:6px 4px;
+    font-size:9px; letter-spacing:0.5px;
+    border-left:none; border-top:2px solid transparent;
+    text-align:center;
+  }
+  .nav-tab.active { border-top-color:var(--accent); border-left:none; background:none; }
+  .nav-divider { display:none; }
+  .nav-bottom { display:none; }
+  .page-inner { padding:24px 16px 72px; }
 }
 
 /* ── Header ── */
@@ -563,22 +617,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 }
 @keyframes spin { to { transform:rotate(360deg); } }
 
-/* ── User Badge ── */
-.user-badge {
-  display:flex; align-items:center; gap:8px;
-  padding:7px 12px; border-radius:20px;
-  background:rgba(255,255,255,0.04); border:1px solid var(--border);
-  cursor:pointer; transition:all 0.2s;
-  font-size:11px; color:var(--muted2);
-  position:absolute; right:24px; top:50%; transform:translateY(-50%);
-}
-.user-badge:hover { border-color:rgba(255,51,85,0.4); color:var(--accent2); }
-.user-avatar {
-  width:22px; height:22px; border-radius:50%;
-  background:var(--border2); flex-shrink:0;
-  overflow:hidden;
-}
-.user-avatar img { width:100%; height:100%; object-fit:cover; }
+/* user-badge / user-avatar → sidebar CSS block 위에 정의됨 */
 
 /* ── Export Button ── */
 .export-btn {
@@ -961,11 +1000,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 </head>
 <body>
 
-<!-- Nav -->
-<nav class="nav">
-  <div class="nav-inner">
-    <div class="nav-logo">LJH</div>
-    <!-- Auth Loading -->
+<!-- Auth Loading (full-screen) -->
 <div id="auth-loading">
   <div class="spinner"></div>
   <div style="font-size:11px;letter-spacing:2px;color:var(--muted)">CONNECTING...</div>
@@ -987,27 +1022,35 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   <div style="font-size:10px;color:var(--muted);letter-spacing:1px">데이터는 본인 Firebase 프로젝트에만 저장됩니다</div>
 </div>
 
-<!-- User Badge -->
-<div class="user-badge hidden" id="user-badge" onclick="confirmLogout()">
-  <div class="user-avatar" id="user-avatar"></div>
-  <span id="user-name"></span>
-  <span style="color:var(--accent2);font-size:10px">로그아웃</span>
-</div>
-
-
-      <button class="nav-tab" onclick="goPage('daily')">일일</button>
-      <button class="nav-tab" onclick="goPage('weekly')">주간 플랜</button>
-      <button class="nav-tab active" onclick="goPage('checklist')">체크리스트</button>
-      <button class="nav-tab" onclick="goPage('judge')">판정</button>
-      <button class="nav-tab" onclick="goPage('entry')">진입 기록</button>
-      <button class="nav-tab" onclick="goPage('history')">히스토리</button>
-      <button class="nav-tab" onclick="goPage('disc')">90일</button>
-      <button class="nav-tab" onclick="goPage('calendar')">캘린더</button>
-      <button class="nav-tab" onclick="goPage('asset')">자산</button>
-      <button class="nav-tab" onclick="goPage('stats')">통계</button>
+<!-- Sidebar Nav -->
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="nav-logo">LJH<span>Trading Journal</span></div>
+    <div class="nav-tabs">
+      <button class="nav-tab" onclick="goPage('daily')">📋 일일 브리핑</button>
+      <button class="nav-tab" onclick="goPage('weekly')">📅 주간 플랜</button>
+      <div class="nav-divider"></div>
+      <button class="nav-tab active" onclick="goPage('checklist')">☑ 체크리스트</button>
+      <button class="nav-tab" onclick="goPage('judge')">⚖ 판정</button>
+      <button class="nav-tab" onclick="goPage('entry')">✏ 진입 기록</button>
+      <div class="nav-divider"></div>
+      <button class="nav-tab" onclick="goPage('history')">📜 히스토리</button>
+      <button class="nav-tab" onclick="goPage('stats')">📊 통계</button>
+      <button class="nav-tab" onclick="goPage('calendar')">🗓 캘린더</button>
+      <div class="nav-divider"></div>
+      <button class="nav-tab" onclick="goPage('disc')">🏆 90일 챌린지</button>
+      <button class="nav-tab" onclick="goPage('asset')">💰 자산 관리</button>
+    </div>
+    <div class="nav-bottom">
+      <div class="user-badge hidden" id="user-badge" onclick="confirmLogout()">
+        <div class="user-avatar" id="user-avatar"></div>
+        <span id="user-name"></span>
+      </div>
     </div>
   </div>
 </nav>
+
+<main class="main-content">
 
 <!-- ══════════════════════════════════
      PAGE 0: WEEKLY PLAN
@@ -1806,7 +1849,9 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 </div>
 </div>
 
-<!-- Day detail modal -->
+</main><!-- /.main-content -->
+
+<!-- Day detail modal (portal — outside main) -->
 <div class="cal-modal-overlay" id="cal-modal" onclick="closeDayModal(event)">
   <div class="cal-modal" onclick="event.stopPropagation()">
     <div class="cal-modal-head">
@@ -2301,7 +2346,7 @@ function goPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
-  const idx = {daily:0,weekly:1,checklist:2,judge:3,entry:4,history:5,disc:6,calendar:7,asset:8,stats:9}[name];
+  const idx = {daily:0,weekly:1,checklist:2,judge:3,entry:4,history:5,stats:6,calendar:7,disc:8,asset:9}[name];
   document.querySelectorAll('.nav-tab')[idx].classList.add('active');
   if (name==='history') renderHistory();
   if (name==='weekly') loadWeekPlan();
