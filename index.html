@@ -880,6 +880,45 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 .cal-mt-sub { font-size:10px; color:var(--muted); margin-top:2px; }
 .cal-mt-pnl { font-size:14px; font-weight:700; }
 .cal-mt-pnl.pos { color:var(--accent); } .cal-mt-pnl.neg { color:var(--accent2); } .cal-mt-pnl.be { color:var(--accent3); } .cal-mt-pnl.neu { color:var(--muted2); }
+
+/* ── Asset Management ── */
+.asset-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:20px; }
+.asset-sum-card { padding:14px; border:1px solid var(--border); border-radius:12px; background:var(--panel2); }
+.asset-sum-card.total { border-color:rgba(0,255,136,0.35); background:rgba(0,255,136,0.06); }
+.asset-sum-label { font-size:10px; letter-spacing:1px; color:var(--muted); text-transform:uppercase; }
+.asset-sum-val { font-size:20px; font-weight:700; margin-top:5px; }
+.asset-sum-val.pos { color:var(--accent); } .asset-sum-val.neg { color:var(--accent2); } .asset-sum-val.neu { color:var(--text); }
+.asset-sum-sub { font-size:10px; color:var(--muted); margin-top:3px; }
+
+.acc-card { display:flex; align-items:center; gap:12px; padding:14px; border:1px solid var(--border); border-radius:12px; background:var(--panel2); margin-bottom:10px; }
+.acc-bar { width:4px; align-self:stretch; border-radius:3px; background:var(--accent); }
+.acc-main { flex:1; min-width:0; }
+.acc-name { font-size:14px; font-weight:600; }
+.acc-breakdown { font-size:10px; color:var(--muted); margin-top:3px; }
+.acc-right { text-align:right; }
+.acc-balance { font-size:17px; font-weight:700; }
+.acc-balance.pos { color:var(--accent); } .acc-balance.neg { color:var(--accent2); } .acc-balance.neu { color:var(--text); }
+.acc-alloc { font-size:10px; color:var(--muted); margin-top:2px; }
+.acc-del { background:transparent; border:none; color:var(--muted); font-size:15px; cursor:pointer; padding:4px; }
+.acc-del:hover { color:var(--accent2); }
+
+.asset-add-row { display:flex; gap:8px; margin-top:6px; }
+.asset-add-row .form-input { flex:1; }
+.asset-btn { padding:11px 16px; border:1px solid var(--border2); border-radius:10px; background:var(--panel2); color:var(--accent); font-size:12px; cursor:pointer; font-family:inherit; white-space:nowrap; transition:all .18s; }
+.asset-btn:hover { border-color:var(--accent); background:rgba(0,255,136,0.08); }
+.asset-btn.full { width:100%; }
+
+.ledger-form { padding:14px; border:1px solid var(--border); border-radius:12px; background:var(--panel2); }
+.ldg-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--panel2); margin-bottom:8px; }
+.ldg-badge { font-size:11px; font-weight:700; padding:3px 9px; border-radius:6px; white-space:nowrap; }
+.ldg-badge.deposit { color:var(--accent); background:rgba(0,255,136,0.12); }
+.ldg-badge.withdraw { color:var(--accent2); background:rgba(255,51,85,0.12); }
+.ldg-info { flex:1; min-width:0; }
+.ldg-acc { font-size:13px; font-weight:600; }
+.ldg-sub { font-size:10px; color:var(--muted); margin-top:2px; }
+.ldg-amt { font-size:14px; font-weight:700; }
+.ldg-amt.deposit { color:var(--accent); } .ldg-amt.withdraw { color:var(--accent2); }
+@media(max-width:640px){ .asset-summary { grid-template-columns:repeat(2,1fr); } }
 </style>
 </head>
 <body>
@@ -925,6 +964,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
       <button class="nav-tab" onclick="goPage('history')">히스토리</button>
       <button class="nav-tab" onclick="goPage('disc')">90일</button>
       <button class="nav-tab" onclick="goPage('calendar')">캘린더</button>
+      <button class="nav-tab" onclick="goPage('asset')">자산</button>
     </div>
   </div>
 </nav>
@@ -983,13 +1023,13 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     <div class="sec-title">📅 월요일 — 큰 그림 분석</div>
 
     <div class="form-group" style="margin-bottom:10px">
-      <label class="form-label">주차 & 시드</label>
+      <label class="form-label">주차 & 총 시드 (자산관리 자동)</label>
       <div class="form-grid">
         <div class="form-group">
-          <input class="form-input" id="wk-num" placeholder="주차 (예: 21주차)" oninput="saveWeekPlan()">
+          <input class="form-input" id="wk-num" placeholder="주차 메모 (예: 21주차)" oninput="saveWeekPlan()">
         </div>
         <div class="form-group">
-          <input class="form-input" type="number" id="wk-seed" placeholder="시드 ($)" oninput="saveWeekPlan(); updateWeekProgress()">
+          <input class="form-input" type="number" id="wk-seed" placeholder="총 시드 ($)" readonly title="자산 관리 탭의 총 시드 기준" style="opacity:.8;cursor:not-allowed">
         </div>
       </div>
     </div>
@@ -1249,6 +1289,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
           <option value="SOLUSDT.P">SOL</option>
           <option value="기타">기타</option>
         </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">거래소</label>
+        <select class="form-select" id="f-exchange"></select>
       </div>
     </div>
     <div class="form-grid">
@@ -1516,6 +1560,67 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 </div>
 </div>
 
+<!-- ══════════════════════════════════
+     PAGE 7: ASSET MANAGEMENT
+═══════════════════════════════════ -->
+<div class="page" id="page-asset">
+<div class="page-inner">
+
+  <div class="page-header">
+    <div class="page-label">Asset Management</div>
+    <div class="page-title">자산 관리</div>
+    <div class="page-sub">거래소별 입·출금과 손익을 합산해 총 시드를 관리</div>
+  </div>
+
+  <div class="asset-summary" id="asset-summary"></div>
+
+  <div class="sec">
+    <div class="sec-title">거래소별 자산</div>
+    <div id="asset-accounts"></div>
+    <div class="asset-add-row">
+      <input class="form-input" id="acc-new-name" placeholder="거래소 이름 (예: 바이낸스)">
+      <button class="asset-btn" onclick="addAccount()">+ 거래소 추가</button>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">입금 / 출금 기록</div>
+    <div class="ledger-form">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">거래소</label>
+          <select class="form-select" id="ldg-account"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">구분</label>
+          <select class="form-select" id="ldg-type">
+            <option value="deposit">입금</option>
+            <option value="withdraw">출금</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid" style="margin-top:10px">
+        <div class="form-group">
+          <label class="form-label">날짜</label>
+          <input class="form-input" type="date" id="ldg-date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">금액 ($)</label>
+          <input class="form-input" type="number" id="ldg-amount" placeholder="0">
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:10px">
+        <label class="form-label">메모 (선택)</label>
+        <input class="form-input" id="ldg-memo" placeholder="예: 추가 입금 / 수익 출금">
+      </div>
+      <button class="asset-btn full" onclick="addLedger()" style="margin-top:12px">＋ 내역 추가</button>
+    </div>
+    <div id="ledger-list" style="margin-top:16px"></div>
+  </div>
+
+</div>
+</div>
+
 <!-- Day detail modal -->
 <div class="cal-modal-overlay" id="cal-modal" onclick="closeDayModal(event)">
   <div class="cal-modal" onclick="event.stopPropagation()">
@@ -1543,6 +1648,8 @@ let currentFilter = 'all';
 let trades = [];
 let weekPlans = {};                 // { 'YYYY-Www': {num,seed,trend,analysis,reflect} }
 let weekAnchor = new Date();        // 주간플랜에서 보고있는 주 (그 주의 아무 날짜)
+let accounts = [];                  // [{id, name}] 거래소 목록
+let ledger = [];                    // [{id, accountId, date, type:'deposit'|'withdraw', amount, memo}]
 let challengeStart = null;
 let riskPct = 3;
 let dailyLossLimit = null;
@@ -1660,6 +1767,8 @@ async function fbLoad() {
     if (snap.exists) {
       const d = snap.data();
       trades = d.trades || [];
+      accounts = d.accounts || [];
+      ledger = d.ledger || [];
       weekPlans = d.weekplans || {};
       // 구버전 단일 weekplan → 현재 주차로 1회 마이그레이션
       if (Object.keys(weekPlans).length === 0 && d.weekplan && (d.weekplan.analysis || d.weekplan.trend || d.weekplan.reflect || d.weekplan.num || d.weekplan.seed)) {
@@ -1682,6 +1791,8 @@ async function fbSave() {
         return rest;
       }),
       weekplans: weekPlans,
+      accounts,
+      ledger,
       config: { challengeStart, riskPct, dailyLossLimit },
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -1763,6 +1874,7 @@ auth.onAuthStateChanged(async user => {
     await fbLoad();
     // 1) 로컬 캐시로 즉시 표시 → 2) 클라우드 차트 병합 후 재렌더
     mergeLocalCharts();
+    populateExchangeSelect();
     renderHistory();
     loadWeekPlan();
     mergeCloudCharts().then(renderHistory);
@@ -1803,9 +1915,11 @@ function saveChartLocally(id, base64arr) {
 function exportJSON() {
   const payload = {
     exportedAt: new Date().toISOString(),
-    version: 'ljh-journal-v6',
+    version: 'ljh-journal-v7',
     trades,                                   // charts 병합된 상태로 포함
     weekplans: weekPlans,
+    accounts,
+    ledger,
     config: { challengeStart, riskPct, dailyLossLimit },
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -1869,6 +1983,8 @@ function importJSON(input) {
       } else if (data.weekplan) {
         weekPlans = {}; weekPlans[isoWeekKey(new Date())] = data.weekplan;  // 구버전 백업 호환
       }
+      if (Array.isArray(data.accounts)) accounts = data.accounts;
+      if (Array.isArray(data.ledger)) ledger = data.ledger;
       if (data.config) {
         challengeStart = data.config.challengeStart || null;
         riskPct = data.config.riskPct || 3;
@@ -1885,6 +2001,8 @@ function importJSON(input) {
       renderHistory();
       loadWeekPlan();
       renderDiscipline();
+      renderAsset();
+      populateExchangeSelect();
       showToast(`✓ 복구 완료 (${trades.length}건)`);
     } catch(err) {
       showToast('⚠️ 복구 실패: 파일을 읽을 수 없습니다');
@@ -1993,13 +2111,15 @@ function goPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
-  const idx = {weekly:0,checklist:1,judge:2,entry:3,history:4,disc:5,calendar:6}[name];
+  const idx = {weekly:0,checklist:1,judge:2,entry:3,history:4,disc:5,calendar:6,asset:7}[name];
   document.querySelectorAll('.nav-tab')[idx].classList.add('active');
   if (name==='history') renderHistory();
   if (name==='weekly') loadWeekPlan();
   if (name==='disc') renderDiscipline();
   if (name==='judge') renderJudge();
   if (name==='calendar') renderCalendar();
+  if (name==='asset') renderAsset();
+  if (name==='entry') populateExchangeSelect();
 }
 
 // ── Judge (GO / NO-GO) ──
@@ -2178,7 +2298,9 @@ function tradeInCurWeek(t) {
 function updateWeekProgress() {
   const weekTrades = trades.filter(t => t.executed !== false && tradeInCurWeek(t));
   const weekPnl = weekTrades.reduce((s,t) => s + (parseFloat(t.pnl)||0), 0);
-  const seed = parseFloat(document.getElementById('wk-seed')?.value || 0);
+  const seed = totalSeed();   // 현재 총 시드(자산관리) 기준
+  const seedEl = document.getElementById('wk-seed');
+  if (seedEl) seedEl.value = seed ? Math.round(seed) : '';
   const pct = seed > 0 ? (weekPnl / seed * 100) : 0;
   const progress = Math.min(100, Math.max(0, (pct / 30) * 100));
 
@@ -2419,6 +2541,7 @@ async function saveTrade() {
   const id = Date.now();
   const trade = {
     id, date, symbol,
+    exchange: document.getElementById('f-exchange').value || null,
     lev: document.getElementById('f-lev').value,
     type: document.getElementById('f-type').value,
     dir: formDir,
@@ -2569,6 +2692,7 @@ function renderHistory() {
         <span class="trade-tag ${t.dir}">${t.dir==='long'?'↑ LONG':'↓ SHORT'}</span>
         <span class="trade-tag">${t.lev}</span>
         <span class="trade-tag">${t.type}</span>
+        ${t.exchange?`<span class="trade-tag">🏦 ${accountName(t.exchange)}</span>`:''}
         ${timeTag}
         ${t.psych?`<span class="trade-tag">${t.psych}</span>`:''}
         ${execBadge}
@@ -2727,6 +2851,160 @@ function showToast(msg) {
   const t=document.getElementById('toast');
   t.textContent=msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+// ══════════════════════════════════
+//  ASSET MANAGEMENT
+// ══════════════════════════════════
+function uid8() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function accountById(id) { return accounts.find(a => a.id === id); }
+function accountName(id) { const a = accountById(id); return a ? a.name : '미지정'; }
+
+function accountDeposits(id) { return ledger.filter(l=>l.accountId===id && l.type==='deposit').reduce((s,l)=>s+(parseFloat(l.amount)||0),0); }
+function accountWithdraws(id){ return ledger.filter(l=>l.accountId===id && l.type==='withdraw').reduce((s,l)=>s+(parseFloat(l.amount)||0),0); }
+function accountPnl(id) {
+  return trades.filter(t => t.executed !== false && t.exchange === id)
+               .reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
+}
+function accountBalance(id) { return accountDeposits(id) - accountWithdraws(id) + accountPnl(id); }
+function totalSeed() { return accounts.reduce((s,a)=>s+accountBalance(a.id),0); }
+function totalDeposits() { return accounts.reduce((s,a)=>s+accountDeposits(a.id),0); }
+function totalWithdraws() { return accounts.reduce((s,a)=>s+accountWithdraws(a.id),0); }
+function totalRealizedPnl() { return accounts.reduce((s,a)=>s+accountPnl(a.id),0); }
+
+function addAccount() {
+  const input = document.getElementById('acc-new-name');
+  const name = (input.value||'').trim();
+  if (!name) { showToast('⚠️ 거래소 이름을 입력하세요'); return; }
+  accounts.push({ id: uid8(), name });
+  input.value = '';
+  if (currentUser) fbSave();
+  renderAsset(); populateExchangeSelect();
+  showToast('✓ 거래소 추가됨');
+}
+function deleteAccount(id) {
+  const hasTrades = trades.some(t => t.exchange === id);
+  const hasLedger = ledger.some(l => l.accountId === id);
+  const msg = (hasTrades || hasLedger)
+    ? '이 거래소에 연결된 매매·입출금 기록이 있습니다. 거래소를 삭제하면 해당 기록의 거래소 표시가 사라집니다. 계속할까요?'
+    : '이 거래소를 삭제할까요?';
+  if (!confirm(msg)) return;
+  accounts = accounts.filter(a => a.id !== id);
+  if (currentUser) fbSave();
+  renderAsset(); populateExchangeSelect();
+  showToast('삭제 완료');
+}
+function renameAccount(id, name) {
+  const a = accountById(id);
+  if (!a) return;
+  a.name = (name||'').trim() || a.name;
+  if (currentUser) fbSave();
+  populateExchangeSelect();
+}
+
+function addLedger() {
+  const accountId = document.getElementById('ldg-account').value;
+  const type = document.getElementById('ldg-type').value;
+  const date = document.getElementById('ldg-date').value;
+  const amount = parseFloat(document.getElementById('ldg-amount').value);
+  const memo = document.getElementById('ldg-memo').value.trim();
+  if (!accountId) { showToast('⚠️ 거래소를 먼저 추가하세요'); return; }
+  if (!date || isNaN(amount) || amount <= 0) { showToast('⚠️ 날짜와 금액을 입력하세요'); return; }
+  ledger.push({ id: uid8(), accountId, type, date, amount, memo });
+  document.getElementById('ldg-amount').value = '';
+  document.getElementById('ldg-memo').value = '';
+  if (currentUser) fbSave();
+  renderAsset();
+  showToast('✓ 내역 추가됨');
+}
+function deleteLedger(id) {
+  if (!confirm('이 내역을 삭제할까요?')) return;
+  ledger = ledger.filter(l => l.id !== id);
+  if (currentUser) fbSave();
+  renderAsset();
+  showToast('삭제 완료');
+}
+
+function fmtMoney(n) { return (n>=0?'+':'') + '$' + Math.round(n).toLocaleString(); }
+function fmtPlain(n) { return '$' + Math.round(n).toLocaleString(); }
+
+function renderAsset() {
+  // 거래소 select (입출금 폼)
+  populateExchangeSelect();
+  const ldgDate = document.getElementById('ldg-date');
+  if (ldgDate && !ldgDate.value) ldgDate.value = new Date().toISOString().split('T')[0];
+
+  const total = totalSeed();
+  const dep = totalDeposits(), wd = totalWithdraws(), pnl = totalRealizedPnl();
+  const principal = dep - wd;
+  const roi = principal > 0 ? (pnl / principal * 100) : 0;
+
+  const sum = document.getElementById('asset-summary');
+  if (sum) sum.innerHTML = `
+    <div class="asset-sum-card total"><div class="asset-sum-label">총 시드</div><div class="asset-sum-val ${total>=0?'pos':'neg'}">${fmtPlain(total)}</div><div class="asset-sum-sub">순입금 ${fmtPlain(principal)}</div></div>
+    <div class="asset-sum-card"><div class="asset-sum-label">총 입금</div><div class="asset-sum-val neu">${fmtPlain(dep)}</div></div>
+    <div class="asset-sum-card"><div class="asset-sum-label">총 출금</div><div class="asset-sum-val neu">${fmtPlain(wd)}</div></div>
+    <div class="asset-sum-card"><div class="asset-sum-label">실현손익 (수익률)</div><div class="asset-sum-val ${pnl>0?'pos':pnl<0?'neg':'neu'}">${fmtMoney(pnl)}</div><div class="asset-sum-sub">${roi>=0?'+':''}${roi.toFixed(1)}%</div></div>`;
+
+  // 거래소 카드
+  const accEl = document.getElementById('asset-accounts');
+  if (accEl) {
+    if (!accounts.length) {
+      accEl.innerHTML = `<div class="empty-state" style="padding:24px"><div class="empty-text">등록된 거래소가 없습니다. 아래에서 추가하세요.</div></div>`;
+    } else {
+      accEl.innerHTML = accounts.map(a => {
+        const bal = accountBalance(a.id);
+        const dp = accountDeposits(a.id), wdr = accountWithdraws(a.id), pl = accountPnl(a.id);
+        const alloc = total > 0 ? Math.round(bal / total * 100) : 0;
+        return `<div class="acc-card">
+          <div class="acc-bar" style="background:${bal>=0?'var(--accent)':'var(--accent2)'}"></div>
+          <div class="acc-main">
+            <div class="acc-name" contenteditable="true" spellcheck="false" onblur="renameAccount('${a.id}', this.textContent)">${a.name}</div>
+            <div class="acc-breakdown">입금 ${fmtPlain(dp)} · 출금 ${fmtPlain(wdr)} · 손익 ${fmtMoney(pl)}</div>
+          </div>
+          <div class="acc-right">
+            <div class="acc-balance ${bal>0?'pos':bal<0?'neg':'neu'}">${fmtPlain(bal)}</div>
+            <div class="acc-alloc">비중 ${alloc}%</div>
+          </div>
+          <button class="acc-del" onclick="deleteAccount('${a.id}')">✕</button>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // 입출금 내역 리스트 (최신순)
+  const listEl = document.getElementById('ledger-list');
+  if (listEl) {
+    const sorted = [...ledger].sort((a,b)=> (b.date||'').localeCompare(a.date||'') || 0);
+    listEl.innerHTML = sorted.length ? sorted.map(l => `
+      <div class="ldg-row">
+        <span class="ldg-badge ${l.type}">${l.type==='deposit'?'입금':'출금'}</span>
+        <div class="ldg-info">
+          <div class="ldg-acc">${accountName(l.accountId)}</div>
+          <div class="ldg-sub">${l.date}${l.memo?' · '+l.memo:''}</div>
+        </div>
+        <span class="ldg-amt ${l.type}">${l.type==='deposit'?'+':'-'}${fmtPlain(l.amount)}</span>
+        <button class="acc-del" onclick="deleteLedger('${l.id}')">✕</button>
+      </div>`).join('')
+      : `<div class="empty-state" style="padding:20px"><div class="empty-text">입출금 내역이 없습니다</div></div>`;
+  }
+}
+
+// 진입폼 / 입출금폼의 거래소 select 채우기
+function populateExchangeSelect() {
+  const opts = accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+  const fEx = document.getElementById('f-exchange');
+  if (fEx) {
+    const prev = fEx.value;
+    fEx.innerHTML = accounts.length ? opts : `<option value="">거래소 없음</option>`;
+    if (prev && accounts.some(a=>a.id===prev)) fEx.value = prev;
+  }
+  const ldgAcc = document.getElementById('ldg-account');
+  if (ldgAcc) {
+    const prev = ldgAcc.value;
+    ldgAcc.innerHTML = accounts.length ? opts : `<option value="">거래소 없음</option>`;
+    if (prev && accounts.some(a=>a.id===prev)) ldgAcc.value = prev;
+  }
 }
 
 // ══════════════════════════════════
@@ -2890,7 +3168,7 @@ function openDayModal(dStr) {
       const dir = t.dir==='long'?'🔼 롱':t.dir==='short'?'🔽 숏':'';
       return `<div class="cal-mt-row">
         <div><div class="cal-mt-sym">${sym} <span style="font-size:10px;color:var(--muted)">${dir}</span></div>
-        <div class="cal-mt-sub">${resLabel[t.result]||''} ${t.entryTime||''}</div></div>
+        <div class="cal-mt-sub">${resLabel[t.result]||''} ${t.exchange?'· '+accountName(t.exchange):''} ${t.entryTime||''}</div></div>
         <div class="cal-mt-pnl ${pc}">${t.result==='pass'?'—':(p>0?'+':'')+Math.round(p)}</div>
       </div>`;
     }).join('');
