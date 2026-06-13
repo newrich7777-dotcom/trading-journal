@@ -491,6 +491,36 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 }
 @keyframes rippleA { to { transform:scale(4); opacity:0; } }
 
+/* ── Daily Bias Banner ── */
+.daily-banner {
+  margin:0 0 18px;
+  padding:10px 16px;
+  border-radius:var(--radius-sm);
+  display:flex; align-items:center; gap:10px;
+  font-size:12px; letter-spacing:1px;
+}
+.daily-banner.long  { background:rgba(0,255,136,0.08); border:1px solid rgba(0,255,136,0.3); color:var(--accent); }
+.daily-banner.short { background:rgba(255,51,85,0.08);  border:1px solid rgba(255,51,85,0.3);  color:var(--accent2); }
+.daily-banner.wait  { background:rgba(255,170,0,0.08);  border:1px solid rgba(255,170,0,0.3);  color:var(--accent3); }
+
+/* ── Stats ── */
+.stat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:14px; margin-bottom:24px; }
+.stat-card { background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-sm); padding:16px 18px; }
+.stat-card-label { font-size:10px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-bottom:6px; }
+.stat-card-val   { font-family:'Bebas Neue',cursive; font-size:28px; letter-spacing:2px; }
+.stat-card-val.pos { color:var(--accent); }
+.stat-card-val.neg { color:var(--accent2); }
+.stat-card-val.neu { color:var(--text); }
+.stat-sec-title { font-size:10px; letter-spacing:3px; color:var(--muted); text-transform:uppercase; margin:24px 0 12px; }
+.bar-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.bar-label { font-size:12px; color:var(--muted2); min-width:80px; text-align:right; }
+.bar-track { flex:1; height:8px; background:var(--panel2); border-radius:4px; overflow:hidden; }
+.bar-fill  { height:100%; border-radius:4px; transition:width 0.4s; }
+.bar-fill.pos { background:var(--accent); }
+.bar-fill.neg { background:var(--accent2); }
+.bar-fill.neu { background:var(--accent4); }
+.bar-val   { font-size:12px; color:var(--text); min-width:50px; }
+
 /* Animations */
 @keyframes fadeDown { from{opacity:0;transform:translateY(-16px)} to{opacity:1;transform:translateY(0)} }
 @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
@@ -965,6 +995,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 </div>
 
 
+      <button class="nav-tab" onclick="goPage('daily')">일일</button>
       <button class="nav-tab" onclick="goPage('weekly')">주간 플랜</button>
       <button class="nav-tab active" onclick="goPage('checklist')">체크리스트</button>
       <button class="nav-tab" onclick="goPage('judge')">판정</button>
@@ -973,6 +1004,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
       <button class="nav-tab" onclick="goPage('disc')">90일</button>
       <button class="nav-tab" onclick="goPage('calendar')">캘린더</button>
       <button class="nav-tab" onclick="goPage('asset')">자산</button>
+      <button class="nav-tab" onclick="goPage('stats')">통계</button>
     </div>
   </div>
 </nav>
@@ -1335,12 +1367,26 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     <div class="form-grid" style="margin-top:10px">
       <div class="form-group">
         <label class="form-label">진입가</label>
-        <input class="form-input" type="number" id="f-entry" placeholder="0.00">
+        <input class="form-input" type="number" id="f-entry" placeholder="0.00" oninput="calcRR()">
       </div>
       <div class="form-group">
         <label class="form-label">청산가</label>
         <input class="form-input" type="number" id="f-exit" placeholder="0.00">
       </div>
+    </div>
+    <div class="form-grid" style="margin-top:10px">
+      <div class="form-group">
+        <label class="form-label">손절가 <span style="color:var(--muted);font-size:10px">(선택)</span></label>
+        <input class="form-input" type="number" id="f-stop" placeholder="0.00" oninput="calcRR()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">목표가 <span style="color:var(--muted);font-size:10px">(선택)</span></label>
+        <input class="form-input" type="number" id="f-target" placeholder="0.00" oninput="calcRR()">
+      </div>
+    </div>
+    <div id="rr-display" style="display:none;margin-top:8px;padding:10px 14px;background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.2);border-radius:8px;text-align:center">
+      <span style="font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase">손익비 (R:R)</span>
+      <span id="rr-val" style="font-family:'Bebas Neue',cursive;font-size:22px;letter-spacing:2px;color:var(--accent);margin-left:10px"></span>
     </div>
     <div class="form-grid full" style="margin-top:10px">
       <div class="form-group">
@@ -1631,6 +1677,132 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 </div>
 </div>
 
+<!-- ══════════════════════════════════
+     PAGE: DAILY BRIEF
+═══════════════════════════════════ -->
+<div class="page" id="page-daily">
+<div class="page-inner">
+  <div class="page-header">
+    <div class="page-label">Daily Brief</div>
+    <div class="page-title">일일 전장 브리핑</div>
+    <div class="page-sub">장 시작 전 편향과 핵심 레벨을 기록하세요</div>
+  </div>
+
+  <!-- 날짜 이동 -->
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;justify-content:center">
+    <button class="sec-btn" onclick="dailyShift(-1)">◀</button>
+    <span id="daily-date-label" style="font-size:16px;letter-spacing:2px;min-width:120px;text-align:center"></span>
+    <button class="sec-btn" onclick="dailyShift(1)">▶</button>
+    <button class="sec-btn" onclick="dailyToday()" style="font-size:10px;letter-spacing:1px">오늘</button>
+  </div>
+
+  <!-- 편향 -->
+  <div class="sec">
+    <div class="sec-title">오늘의 편향</div>
+    <div style="display:flex;gap:10px;margin-bottom:16px" id="bias-btns">
+      <button class="dir-btn long" id="bias-long" onclick="setBias('long')">▲ 롱 편향</button>
+      <button class="dir-btn short" id="bias-short" onclick="setBias('short')">▼ 숏 편향</button>
+      <button class="dir-btn" id="bias-wait" onclick="setBias('wait')" style="flex:1;border:1px solid var(--border2);color:var(--muted)">⏸ 관망</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">관망일 (매매 금지)</label>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
+        <label class="disc-chip-label" style="cursor:pointer">
+          <input type="checkbox" id="daily-notrade" onchange="saveDailyBrief()" style="margin-right:6px">
+          오늘은 매매하지 않겠습니다
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- 핵심 레벨 -->
+  <div class="sec">
+    <div class="sec-title">핵심 레벨</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">BTC 저항</label>
+        <input class="form-input" type="number" id="daily-resBTC" placeholder="100000" oninput="saveDailyBrief()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">BTC 지지</label>
+        <input class="form-input" type="number" id="daily-supBTC" placeholder="95000" oninput="saveDailyBrief()">
+      </div>
+    </div>
+    <div class="form-grid" style="margin-top:10px">
+      <div class="form-group">
+        <label class="form-label">SOL 저항</label>
+        <input class="form-input" type="number" id="daily-resSOL" placeholder="0" oninput="saveDailyBrief()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">SOL 지지</label>
+        <input class="form-input" type="number" id="daily-supSOL" placeholder="0" oninput="saveDailyBrief()">
+      </div>
+    </div>
+  </div>
+
+  <!-- 시장 지표 -->
+  <div class="sec">
+    <div class="sec-title">시장 지표</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">펀딩비</label>
+        <input class="form-input" type="text" id="daily-funding" placeholder="+0.01%" oninput="saveDailyBrief()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">OI (미결제약정)</label>
+        <input class="form-input" type="text" id="daily-oi" placeholder="증가 / 감소 / 유지" oninput="saveDailyBrief()">
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:10px">
+      <label class="form-label">매크로 이벤트</label>
+      <textarea class="form-textarea" id="daily-macro" placeholder="CPI, FOMC, 실업지표 등" oninput="saveDailyBrief()"></textarea>
+    </div>
+  </div>
+
+  <!-- 오늘의 규칙 -->
+  <div class="sec">
+    <div class="sec-title">오늘의 규칙 / 집중 포인트</div>
+    <textarea class="form-textarea" id="daily-rule" placeholder="예: 1R 이상만 진입, 10시 이후 매매 금지" oninput="saveDailyBrief()"></textarea>
+  </div>
+
+  <!-- 저장 & 잠금 -->
+  <div style="display:flex;gap:10px;margin-top:10px" id="daily-action-row">
+    <button class="btn-full" onclick="lockDailyBrief()" id="daily-lock-btn" style="flex:1">🔒 저장 & 잠금</button>
+  </div>
+  <div id="daily-locked-badge" style="display:none;text-align:center;padding:10px;color:var(--accent);font-size:12px;letter-spacing:2px">✓ 잠금됨 — 수정 불가</div>
+
+  <!-- 적중률 -->
+  <div class="sec" style="margin-top:32px">
+    <div class="sec-title">편향 적중률</div>
+    <div id="daily-hit-section">
+      <div id="daily-hit-prompt" style="display:none">
+        <div style="margin-bottom:12px;color:var(--muted2);font-size:13px">어제 편향이 적중했나요?</div>
+        <div style="display:flex;gap:10px">
+          <button class="sec-btn" onclick="setHit('hit')" style="color:var(--accent)">✓ 적중</button>
+          <button class="sec-btn" onclick="setHit('miss')" style="color:var(--accent2)">✗ 실패</button>
+          <button class="sec-btn" onclick="setHit('neutral')">— 무관</button>
+        </div>
+      </div>
+    </div>
+    <div id="daily-stats" style="margin-top:16px"></div>
+  </div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════
+     PAGE: STATS
+═══════════════════════════════════ -->
+<div class="page" id="page-stats">
+<div class="page-inner">
+  <div class="page-header">
+    <div class="page-label">Analytics</div>
+    <div class="page-title">분석 대시보드</div>
+    <div class="page-sub">실행된 매매만 집계합니다</div>
+  </div>
+  <div id="stats-body"></div>
+</div>
+</div>
+
 <!-- Day detail modal -->
 <div class="cal-modal-overlay" id="cal-modal" onclick="closeDayModal(event)">
   <div class="cal-modal" onclick="event.stopPropagation()">
@@ -1663,6 +1835,7 @@ let ledger = [];                    // [{id, accountId, date, type:'deposit'|'wi
 let challengeStart = null;
 let riskPct = 3;
 let dailyLossLimit = null;
+let dailyBriefs = {};               // { 'YYYY-MM-DD': {bias,resBTC,supBTC,resSOL,supSOL,funding,oi,macro,rule,noTrade,locked,hit} }
 let discState = { check:{}, hard:{} };
 let lastJudgeScore = null;
 
@@ -1787,6 +1960,7 @@ async function fbLoad() {
       challengeStart = (d.config && d.config.challengeStart) || null;
       riskPct = (d.config && d.config.riskPct) || 3;
       dailyLossLimit = (d.config && d.config.dailyLossLimit) || null;
+      dailyBriefs = d.dailyBriefs || {};
       updateRuleLabels();
     }
   } catch(e) { console.error('fbLoad:', e); }
@@ -1804,6 +1978,7 @@ async function fbSave() {
       accounts,
       ledger,
       config: { challengeStart, riskPct, dailyLossLimit },
+      dailyBriefs,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
     await docRef().set(payload, { merge: true });
@@ -1888,6 +2063,8 @@ auth.onAuthStateChanged(async user => {
     renderHistory();
     loadWeekPlan();
     mergeCloudCharts().then(renderHistory);
+    // show today's bias on checklist page (initial page)
+    setTimeout(() => renderDailyBanner('checklist'), 0);
   } else {
     currentUser = null;
     badge.classList.add('hidden');
@@ -2121,15 +2298,18 @@ function goPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
-  const idx = {weekly:0,checklist:1,judge:2,entry:3,history:4,disc:5,calendar:6,asset:7}[name];
+  const idx = {daily:0,weekly:1,checklist:2,judge:3,entry:4,history:5,disc:6,calendar:7,asset:8,stats:9}[name];
   document.querySelectorAll('.nav-tab')[idx].classList.add('active');
   if (name==='history') renderHistory();
   if (name==='weekly') loadWeekPlan();
   if (name==='disc') renderDiscipline();
-  if (name==='judge') renderJudge();
+  if (name==='judge') { renderJudge(); renderDailyBanner('judge'); }
   if (name==='calendar') renderCalendar();
   if (name==='asset') renderAsset();
   if (name==='entry') populateExchangeSelect();
+  if (name==='daily') renderDaily();
+  if (name==='stats') renderStats();
+  if (name==='checklist') renderDailyBanner('checklist');
 }
 
 // ── Judge (GO / NO-GO) ──
@@ -2501,6 +2681,22 @@ function resetChecks() {
 }
 
 // ── Duration calculator ──
+function calcRR() {
+  const entry = parseFloat(document.getElementById('f-entry').value);
+  const stop  = parseFloat(document.getElementById('f-stop').value);
+  const target= parseFloat(document.getElementById('f-target').value);
+  const disp  = document.getElementById('rr-display');
+  const valEl = document.getElementById('rr-val');
+  if (!entry || !stop || !target || stop === entry) { disp.style.display='none'; return null; }
+  const risk   = Math.abs(entry - stop);
+  const reward = Math.abs(target - entry);
+  const rr     = reward / risk;
+  valEl.textContent = rr.toFixed(2) + 'R';
+  valEl.style.color = rr >= 2 ? 'var(--accent)' : 'var(--accent3)';
+  disp.style.display = 'block';
+  return rr;
+}
+
 function calcDuration() {
   const ev = document.getElementById('f-entry-dt').value;
   const xv = document.getElementById('f-exit-dt').value;
@@ -2562,6 +2758,8 @@ async function saveTrade() {
     duration: getDurationStr(),
     seed: document.getElementById('f-seed').value,
     pnl: document.getElementById('f-pnl').value,
+    stop: document.getElementById('f-stop').value || null,
+    target: document.getElementById('f-target').value || null,
     result: formPnl,
     basis: document.getElementById('f-basis').value,
     reflect: document.getElementById('f-reflect').value,
@@ -2571,11 +2769,23 @@ async function saveTrade() {
     goNogo: lastJudgeScore !== null ? (lastJudgeScore >= 90 ? 'go' : 'no-go') : null,
     score: lastJudgeScore,
   };
+  // ── R:R 계산 ──
+  const rrVal = calcRR();
+  if (rrVal !== null) trade.rr = parseFloat(rrVal.toFixed(2));
+
+  // ── 손절 위반 자동 감지 ──
+  if (trade.stop && trade.entry && trade.exit && formPnl === 'loss') {
+    const ep = parseFloat(trade.entry), sp = parseFloat(trade.stop), xp = parseFloat(trade.exit);
+    if (trade.dir === 'long'  && xp < sp) { showToast('⚠️ 손절가 아래에서 청산 — 손절 미준수 위험!'); }
+    if (trade.dir === 'short' && xp > sp) { showToast('⚠️ 손절가 위에서 청산 — 손절 미준수 위험!'); }
+  }
+
   // ── 디시플린 기록 ──
   const hard = { ...discState.hard };
   if (trade.psych === 'Drunken ⚠️') hard.drunk = true;       // 음주 매매 자동 위반
   const check = { ...discState.check };
   if (trade.basis && trade.reflect) check.loggedAfter = true; // 근거+반성 작성 시 자동 체크
+  if (trade.rr >= 2) check.rrOk = true;                       // R:R≥2 자동 충족
   trade.hard = hard;
   trade.check = check;
   trade.discScore = tradeDiscScore(trade);
@@ -2596,7 +2806,10 @@ function resetForm() {
   document.getElementById('f-exit-dt').value = '';
   document.getElementById('f-entry').value='';
   document.getElementById('f-exit').value='';
+  document.getElementById('f-stop').value='';
+  document.getElementById('f-target').value='';
   document.getElementById('duration-display').style.display='none';
+  document.getElementById('rr-display').style.display='none';
   document.getElementById('f-seed').value='';
   document.getElementById('f-pnl').value='';
   document.getElementById('f-basis').value='';
@@ -3227,6 +3440,286 @@ function openDayModal(dStr) {
 }
 function closeDayModal() {
   document.getElementById('cal-modal').classList.remove('show');
+}
+
+// ══════════════════════════════════
+// DAILY BRIEF
+// ══════════════════════════════════
+let dailyAnchor = new Date();
+
+function dailyKey(d) {
+  return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
+}
+
+function dailyShift(delta) {
+  dailyAnchor = new Date(dailyAnchor);
+  dailyAnchor.setDate(dailyAnchor.getDate() + delta);
+  renderDaily();
+}
+function dailyToday() { dailyAnchor = new Date(); renderDaily(); }
+
+function setBias(v) {
+  const db = dailyBriefs[dailyKey(dailyAnchor)] || {};
+  db.bias = db.bias === v ? null : v;
+  dailyBriefs[dailyKey(dailyAnchor)] = db;
+  saveDailyBrief();
+  renderDailyBiasButtons(db.bias);
+}
+
+function renderDailyBiasButtons(bias) {
+  ['long','short','wait'].forEach(b => {
+    const el = document.getElementById('bias-'+b);
+    if (el) el.classList.toggle('active', bias === b);
+  });
+}
+
+function saveDailyBrief() {
+  const key = dailyKey(dailyAnchor);
+  const br = dailyBriefs[key] || {};
+  if (!br.locked) {
+    br.bias    = br.bias || null;
+    br.resBTC  = document.getElementById('daily-resBTC')?.value || '';
+    br.supBTC  = document.getElementById('daily-supBTC')?.value || '';
+    br.resSOL  = document.getElementById('daily-resSOL')?.value || '';
+    br.supSOL  = document.getElementById('daily-supSOL')?.value || '';
+    br.funding = document.getElementById('daily-funding')?.value || '';
+    br.oi      = document.getElementById('daily-oi')?.value || '';
+    br.macro   = document.getElementById('daily-macro')?.value || '';
+    br.rule    = document.getElementById('daily-rule')?.value || '';
+    br.noTrade = document.getElementById('daily-notrade')?.checked || false;
+    dailyBriefs[key] = br;
+  }
+  if (currentUser) fbSave();
+}
+
+function lockDailyBrief() {
+  saveDailyBrief();
+  const key = dailyKey(dailyAnchor);
+  const br = dailyBriefs[key] || {};
+  br.locked = true;
+  dailyBriefs[key] = br;
+  if (currentUser) fbSave();
+  renderDaily();
+  showToast('✓ 오늘의 브리핑이 잠금됐습니다');
+}
+
+function setHit(val) {
+  const yesterday = new Date(dailyAnchor);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const key = dailyKey(yesterday);
+  const br = dailyBriefs[key] || {};
+  br.hit = val;
+  dailyBriefs[key] = br;
+  if (currentUser) fbSave();
+  renderDailyStats();
+  document.getElementById('daily-hit-prompt').style.display = 'none';
+  showToast('✓ 적중 여부 기록됨');
+}
+
+function renderDailyStats() {
+  const el = document.getElementById('daily-stats');
+  if (!el) return;
+  const entries = Object.values(dailyBriefs).filter(b => b.bias && b.bias !== 'wait' && b.hit);
+  const total = entries.length;
+  if (!total) { el.innerHTML = '<div style="color:var(--muted);font-size:12px;text-align:center">아직 적중률 데이터가 없습니다</div>'; return; }
+  const hits = entries.filter(b => b.hit === 'hit').length;
+  const miss = entries.filter(b => b.hit === 'miss').length;
+  const neu  = entries.filter(b => b.hit === 'neutral').length;
+  const pct  = Math.round(hits / total * 100);
+  el.innerHTML = `
+    <div class="stat-grid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat-card"><div class="stat-card-label">적중률</div><div class="stat-card-val pos">${pct}%</div></div>
+      <div class="stat-card"><div class="stat-card-label">적중</div><div class="stat-card-val pos">${hits}</div></div>
+      <div class="stat-card"><div class="stat-card-label">실패</div><div class="stat-card-val neg">${miss}</div></div>
+      <div class="stat-card"><div class="stat-card-label">무관</div><div class="stat-card-val neu">${neu}</div></div>
+    </div>`;
+}
+
+function renderDailyBanner(page) {
+  const todayKey = dailyKey(new Date());
+  const br = dailyBriefs[todayKey];
+  const bannerId = 'daily-banner-' + page;
+  let el = document.getElementById(bannerId);
+  if (!br || !br.bias) {
+    if (el) el.remove();
+    return;
+  }
+  const labels = { long:'▲ 롱 편향', short:'▼ 숏 편향', wait:'⏸ 관망일 — 매매 자제' };
+  const html = `<div class="daily-banner ${br.bias}" id="${bannerId}">
+    <span>📋 오늘의 편향:</span><strong>${labels[br.bias]}</strong>
+    ${br.noTrade ? '<span style="margin-left:auto;font-size:11px;color:var(--accent3)">⚠️ 관망일 설정됨</span>' : ''}
+  </div>`;
+  const target = document.querySelector('#page-' + page + ' .page-inner');
+  if (target) {
+    if (el) el.remove();
+    target.insertAdjacentHTML('afterbegin', html);
+  }
+}
+
+function renderDaily() {
+  const key = dailyKey(dailyAnchor);
+  const br = dailyBriefs[key] || {};
+  const isToday = key === dailyKey(new Date());
+  const locked = !!br.locked;
+
+  // date label
+  const label = document.getElementById('daily-date-label');
+  if (label) label.textContent = key + (isToday ? ' (오늘)' : '');
+
+  // fill fields
+  const fill = (id, val) => { const el = document.getElementById(id); if (el) { el.value = val || ''; el.disabled = locked; } };
+  fill('daily-resBTC', br.resBTC);
+  fill('daily-supBTC', br.supBTC);
+  fill('daily-resSOL', br.resSOL);
+  fill('daily-supSOL', br.supSOL);
+  fill('daily-funding', br.funding);
+  fill('daily-oi', br.oi);
+  fill('daily-macro', br.macro);
+  fill('daily-rule', br.rule);
+  const ntEl = document.getElementById('daily-notrade');
+  if (ntEl) { ntEl.checked = !!br.noTrade; ntEl.disabled = locked; }
+
+  renderDailyBiasButtons(br.bias);
+  ['bias-long','bias-short','bias-wait'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = locked;
+  });
+
+  // lock UI
+  const lockBtn = document.getElementById('daily-lock-btn');
+  const lockBadge = document.getElementById('daily-locked-badge');
+  if (lockBtn) lockBtn.style.display = locked ? 'none' : 'block';
+  if (lockBadge) lockBadge.style.display = locked ? 'block' : 'none';
+
+  // yesterday hit prompt
+  if (isToday) {
+    const yesterday = new Date(dailyAnchor);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yk = dailyKey(yesterday);
+    const yb = dailyBriefs[yk];
+    const hitPrompt = document.getElementById('daily-hit-prompt');
+    if (hitPrompt) {
+      hitPrompt.style.display = (yb && yb.bias && yb.bias !== 'wait' && !yb.hit) ? 'block' : 'none';
+    }
+  } else {
+    const hitPrompt = document.getElementById('daily-hit-prompt');
+    if (hitPrompt) hitPrompt.style.display = 'none';
+  }
+
+  renderDailyStats();
+
+  // noTrade violation check
+  if (br.noTrade && isToday) {
+    const todayTrades = trades.filter(t => t.date === key && t.executed !== false);
+    if (todayTrades.length > 0) {
+      showToast('⚠️ 관망일인데 ' + todayTrades.length + '건의 매매가 기록됐습니다!');
+    }
+  }
+}
+
+// ══════════════════════════════════
+// STATS DASHBOARD
+// ══════════════════════════════════
+function renderStats() {
+  const el = document.getElementById('stats-body');
+  if (!el) return;
+  const ts = trades.filter(t => t.executed !== false && t.result !== 'pass');
+  if (!ts.length) { el.innerHTML = '<div style="color:var(--muted);text-align:center;padding:40px">아직 매매 기록이 없습니다</div>'; return; }
+
+  const pnlOf2 = t => parseFloat(t.pnl) || 0;
+  const wins   = ts.filter(t => t.result === 'profit');
+  const losses = ts.filter(t => t.result === 'loss');
+  const gross  = wins.reduce((s,t)=>s+pnlOf2(t),0);
+  const grossL = Math.abs(losses.reduce((s,t)=>s+pnlOf2(t),0));
+  const pf     = grossL > 0 ? gross / grossL : gross > 0 ? Infinity : 0;
+  const avgW   = wins.length   ? gross / wins.length   : 0;
+  const avgL   = losses.length ? grossL / losses.length : 0;
+  const expect = ts.reduce((s,t)=>s+pnlOf2(t),0) / ts.length;
+  const winRate = Math.round(wins.length / ts.length * 100);
+
+  // Max consecutive losses
+  let maxCL = 0, curCL = 0;
+  ts.slice().reverse().forEach(t => { if (t.result==='loss') { curCL++; maxCL=Math.max(maxCL,curCL); } else curCL=0; });
+
+  // discipline group comparison (≥80 vs <80)
+  const disc80  = ts.filter(t => t.discScore !== null && t.discScore !== undefined && t.discScore >= 80);
+  const discLow = ts.filter(t => t.discScore !== null && t.discScore !== undefined && t.discScore < 80);
+  const grpWR   = arr => arr.length ? Math.round(arr.filter(t=>t.result==='profit').length/arr.length*100) : 0;
+  const grpAvg  = arr => arr.length ? arr.reduce((s,t)=>s+pnlOf2(t),0)/arr.length : 0;
+
+  function barSVG(pct, cls) {
+    return `<div class="bar-track"><div class="bar-fill ${cls}" style="width:${Math.min(pct,100)}%"></div></div>`;
+  }
+
+  function groupTable(label, arr) {
+    if (!arr.length) return `<div style="color:var(--muted);font-size:12px">${label}: 데이터 없음</div>`;
+    const ws = arr.filter(t=>t.result==='profit');
+    const ls = arr.filter(t=>t.result==='loss');
+    const wr2 = grpWR(arr);
+    const avg = grpAvg(arr);
+    const aCls = avg>=0?'pos':'neg';
+    return `<div style="margin-bottom:10px">
+      <div style="font-size:11px;letter-spacing:1px;color:var(--muted2);margin-bottom:6px">${label} (${arr.length}건)</div>
+      <div class="bar-row"><span class="bar-label">승률</span>${barSVG(wr2,'pos')}<span class="bar-val">${wr2}%</span></div>
+      <div class="bar-row"><span class="bar-label">평균손익</span>${barSVG(Math.abs(avg)/Math.max(Math.abs(grpAvg(ts)),1)*100,aCls)}<span class="bar-val ${aCls}">${avg>=0?'+':''}${avg.toFixed(1)}</span></div>
+    </div>`;
+  }
+
+  function groupBy(field, labelMap) {
+    const map = {};
+    ts.forEach(t => {
+      const k = t[field] || '미지정';
+      map[k] = map[k] || [];
+      map[k].push(t);
+    });
+    return Object.entries(map).sort((a,b)=>b[1].length-a[1].length).map(([k,arr]) => {
+      const wr2 = grpWR(arr); const avg = grpAvg(arr); const aCls = avg>=0?'pos':'neg';
+      return `<div class="bar-row">
+        <span class="bar-label" style="min-width:90px;font-size:11px">${labelMap?labelMap[k]||k:k}</span>
+        ${barSVG(wr2,'pos')}
+        <span class="bar-val" style="min-width:35px">${wr2}%</span>
+        <span class="bar-val ${aCls}" style="min-width:55px">${avg>=0?'+':''}${avg.toFixed(1)}</span>
+        <span style="font-size:10px;color:var(--muted)">${arr.length}건</span>
+      </div>`;
+    }).join('');
+  }
+
+  el.innerHTML = `
+    <!-- 핵심 지표 -->
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-card-label">Profit Factor</div><div class="stat-card-val ${pf>=1?'pos':'neg'}">${isFinite(pf)?pf.toFixed(2):'∞'}</div></div>
+      <div class="stat-card"><div class="stat-card-label">기대값 (USD)</div><div class="stat-card-val ${expect>=0?'pos':'neg'}">${expect>=0?'+':''}${expect.toFixed(2)}</div></div>
+      <div class="stat-card"><div class="stat-card-label">승률</div><div class="stat-card-val neu">${winRate}%</div></div>
+      <div class="stat-card"><div class="stat-card-label">매매 수</div><div class="stat-card-val neu">${ts.length}</div></div>
+      <div class="stat-card"><div class="stat-card-label">평균 수익</div><div class="stat-card-val pos">+${avgW.toFixed(2)}</div></div>
+      <div class="stat-card"><div class="stat-card-label">평균 손실</div><div class="stat-card-val neg">-${avgL.toFixed(2)}</div></div>
+      <div class="stat-card"><div class="stat-card-label">최대 연속 손실</div><div class="stat-card-val neg">${maxCL}연속</div></div>
+      <div class="stat-card"><div class="stat-card-label">누적 손익</div><div class="stat-card-val ${gross-grossL>=0?'pos':'neg'}">${gross-grossL>=0?'+':''}${(gross-grossL).toFixed(2)}</div></div>
+    </div>
+
+    <!-- 규율 준수율 비교 -->
+    <div class="stat-sec-title">규율 준수율 (≥80% vs &lt;80%)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+      <div class="sec" style="margin:0">${groupTable('규율 ≥80%', disc80)}</div>
+      <div class="sec" style="margin:0">${groupTable('규율 &lt;80%', discLow)}</div>
+    </div>
+
+    <!-- 방향별 -->
+    <div class="stat-sec-title">방향별 성과 <span style="font-size:10px;font-family:monospace">(승률% / 평균손익 / 건수)</span></div>
+    <div class="sec" style="margin-bottom:16px">${groupBy('dir', {long:'롱',short:'숏'})}</div>
+
+    <!-- GO/NO-GO 별 -->
+    <div class="stat-sec-title">GO / NO-GO 별 성과</div>
+    <div class="sec" style="margin-bottom:16px">${groupBy('goNogo', {go:'GO',null:'미판정','no-go':'NO-GO'})}</div>
+
+    <!-- 심리상태 별 -->
+    <div class="stat-sec-title">심리 상태별 성과</div>
+    <div class="sec" style="margin-bottom:16px">${groupBy('psych')}</div>
+
+    <!-- 종류별 -->
+    <div class="stat-sec-title">매매 종류별 성과</div>
+    <div class="sec" style="margin-bottom:16px">${groupBy('type')}</div>
+  `;
 }
 
 // ── Init ──
