@@ -803,7 +803,83 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   .trade-list { grid-template-columns:1fr !important; }
   .rules-grid { grid-template-columns:1fr; }
   .disc-grid { grid-template-columns:1fr; }
+  .cal-cell { min-height:62px; }
+  .cal-day-pnl { font-size:11px; }
 }
+
+/* ── Calendar ── */
+.cal-toolbar { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+.cal-nav-btn {
+  width:34px; height:34px; border:1px solid var(--border2); border-radius:9px;
+  background:var(--panel2); color:var(--text); font-size:18px; cursor:pointer; transition:all .18s;
+}
+.cal-nav-btn:hover { border-color:var(--accent); color:var(--accent); }
+.cal-month-label { font-size:18px; font-weight:600; letter-spacing:1px; min-width:130px; text-align:center; }
+.cal-today-btn {
+  margin-left:auto; padding:8px 16px; border:1px solid var(--border2); border-radius:9px;
+  background:transparent; color:var(--muted2); font-size:12px; cursor:pointer; font-family:inherit; transition:all .18s;
+}
+.cal-today-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+.cal-summary { display:flex; flex-wrap:wrap; gap:18px; margin-bottom:14px; padding:12px 16px; border:1px solid var(--border); border-radius:12px; background:var(--panel2); }
+.cal-summary .cs-item { display:flex; flex-direction:column; gap:2px; }
+.cal-summary .cs-label { font-size:10px; letter-spacing:1px; color:var(--muted); text-transform:uppercase; }
+.cal-summary .cs-val { font-size:18px; font-weight:700; }
+.cs-val.pos { color:var(--accent); } .cs-val.neg { color:var(--accent2); } .cs-val.neu { color:var(--text); }
+
+.cal-grid { display:grid; grid-template-columns:34px repeat(7,1fr) 64px; gap:5px; }
+.cal-head { margin-bottom:5px; }
+.cal-head > div { text-align:center; font-size:10px; letter-spacing:1px; color:var(--muted); padding:4px 0; text-transform:uppercase; }
+.cal-head .ch-sun { color:var(--accent2); } .cal-head .ch-sat { color:#5aa0ff; }
+#cal-body .cal-grid { margin-bottom:5px; }
+
+.cal-wk { display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--muted); }
+.cal-cell {
+  position:relative; min-height:78px; border:1px solid var(--border); border-radius:9px;
+  background:var(--panel2); padding:5px 6px; cursor:default; transition:all .15s; overflow:hidden;
+}
+.cal-cell.other { opacity:.32; }
+.cal-cell.today { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+.cal-cell.has { cursor:pointer; }
+.cal-cell.has:hover { border-color:var(--border2); transform:translateY(-1px); }
+.cal-cell.win { background:rgba(0,255,136,0.10); border-color:rgba(0,255,136,0.35); }
+.cal-cell.loss { background:rgba(255,51,85,0.10); border-color:rgba(255,51,85,0.35); }
+.cal-cell.be { background:rgba(255,170,0,0.08); border-color:rgba(255,170,0,0.3); }
+.cal-cell.chal::after {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  box-shadow:inset 0 0 0 2px rgba(0,255,136,0.22); border-radius:9px;
+}
+.cal-cell.over { outline:2px solid var(--accent2); outline-offset:-2px; }
+.cal-daynum { font-size:11px; color:var(--muted2); font-weight:600; }
+.cal-cell.today .cal-daynum { color:var(--accent); }
+.cal-day-pnl { font-size:13px; font-weight:700; margin-top:6px; }
+.cal-day-pnl.pos { color:var(--accent); } .cal-day-pnl.neg { color:var(--accent2); } .cal-day-pnl.be { color:var(--accent3); }
+.cal-day-cnt { font-size:9px; color:var(--muted); margin-top:1px; }
+.cal-chal-tag { position:absolute; top:4px; right:5px; font-size:8px; color:var(--accent); font-weight:700; letter-spacing:.5px; }
+.cal-over-tag { position:absolute; bottom:4px; right:5px; font-size:9px; }
+.cal-wktot { display:flex; flex-direction:column; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:9px; background:var(--panel); font-size:11px; font-weight:700; }
+.cal-wktot.pos { color:var(--accent); } .cal-wktot.neg { color:var(--accent2); } .cal-wktot.neu { color:var(--muted); }
+.cal-wktot .wt-cnt { font-size:8px; font-weight:400; color:var(--muted); margin-top:2px; }
+
+.cal-legend { display:flex; flex-wrap:wrap; gap:16px; margin-top:16px; font-size:11px; color:var(--muted2); }
+.cal-legend span { display:flex; align-items:center; gap:6px; }
+.lg-box { width:13px; height:13px; border-radius:4px; display:inline-block; }
+.lg-win { background:rgba(0,255,136,0.18); border:1px solid rgba(0,255,136,0.4); }
+.lg-loss { background:rgba(255,51,85,0.18); border:1px solid rgba(255,51,85,0.4); }
+.lg-chal { background:transparent; box-shadow:inset 0 0 0 2px rgba(0,255,136,0.45); }
+.lg-over { background:transparent; outline:2px solid var(--accent2); outline-offset:-2px; }
+
+.cal-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:200; align-items:center; justify-content:center; padding:20px; }
+.cal-modal-overlay.show { display:flex; }
+.cal-modal { width:100%; max-width:480px; max-height:80vh; overflow-y:auto; background:var(--panel); border:1px solid var(--border2); border-radius:16px; padding:18px; }
+.cal-modal-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.cal-modal-head span { font-size:15px; font-weight:600; }
+.cal-modal-close { background:transparent; border:none; color:var(--muted2); font-size:18px; cursor:pointer; }
+.cal-mt-row { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--panel2); margin-bottom:8px; }
+.cal-mt-sym { font-size:13px; font-weight:600; }
+.cal-mt-sub { font-size:10px; color:var(--muted); margin-top:2px; }
+.cal-mt-pnl { font-size:14px; font-weight:700; }
+.cal-mt-pnl.pos { color:var(--accent); } .cal-mt-pnl.neg { color:var(--accent2); } .cal-mt-pnl.be { color:var(--accent3); } .cal-mt-pnl.neu { color:var(--muted2); }
 </style>
 </head>
 <body>
@@ -848,6 +924,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
       <button class="nav-tab" onclick="goPage('entry')">진입 기록</button>
       <button class="nav-tab" onclick="goPage('history')">히스토리</button>
       <button class="nav-tab" onclick="goPage('disc')">90일</button>
+      <button class="nav-tab" onclick="goPage('calendar')">캘린더</button>
     </div>
   </div>
 </nav>
@@ -1396,6 +1473,52 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 </div>
 </div>
 
+<!-- ══════════════════════════════════
+     PAGE 6: CALENDAR
+═══════════════════════════════════ -->
+<div class="page" id="page-calendar">
+<div class="page-inner">
+
+  <div class="page-header">
+    <div class="page-label">Trading Calendar</div>
+    <div class="page-title">캘린더</div>
+  </div>
+
+  <div class="cal-toolbar">
+    <button class="cal-nav-btn" onclick="calShift(-1)">‹</button>
+    <div class="cal-month-label" id="cal-month-label">—</div>
+    <button class="cal-nav-btn" onclick="calShift(1)">›</button>
+    <button class="cal-today-btn" onclick="calToday()">오늘</button>
+  </div>
+
+  <div class="cal-summary" id="cal-summary"></div>
+
+  <div class="cal-wrap">
+    <div class="cal-grid cal-head" id="cal-head"></div>
+    <div id="cal-body"></div>
+  </div>
+
+  <div class="cal-legend">
+    <span><i class="lg-box lg-win"></i> 수익일</span>
+    <span><i class="lg-box lg-loss"></i> 손실일</span>
+    <span><i class="lg-box lg-chal"></i> 90일 챌린지</span>
+    <span><i class="lg-box lg-over"></i> 일 손실한도 초과</span>
+  </div>
+
+</div>
+</div>
+
+<!-- Day detail modal -->
+<div class="cal-modal-overlay" id="cal-modal" onclick="closeDayModal(event)">
+  <div class="cal-modal" onclick="event.stopPropagation()">
+    <div class="cal-modal-head">
+      <span id="cal-modal-title">—</span>
+      <button class="cal-modal-close" onclick="closeDayModal()">✕</button>
+    </div>
+    <div id="cal-modal-body"></div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -1843,12 +1966,13 @@ function goPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
-  const idx = {weekly:0,checklist:1,judge:2,entry:3,history:4,disc:5}[name];
+  const idx = {weekly:0,checklist:1,judge:2,entry:3,history:4,disc:5,calendar:6}[name];
   document.querySelectorAll('.nav-tab')[idx].classList.add('active');
   if (name==='history') renderHistory();
   if (name==='weekly') updateWeekProgress();
   if (name==='disc') renderDiscipline();
   if (name==='judge') renderJudge();
+  if (name==='calendar') renderCalendar();
 }
 
 // ── Judge (GO / NO-GO) ──
@@ -2550,6 +2674,156 @@ function showToast(msg) {
   const t=document.getElementById('toast');
   t.textContent=msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+// ══════════════════════════════════
+//  CALENDAR
+// ══════════════════════════════════
+let calCursor = new Date();   // 표시 중인 달(아무 날짜나 그 달 기준)
+
+function calShift(delta) {
+  calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() + delta, 1);
+  renderCalendar();
+}
+function calToday() { calCursor = new Date(); renderCalendar(); }
+
+function pnlOf(t) { return parseFloat(t.pnl) || 0; }
+function ymd(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+// ISO 8601 주차 (그 해 몇 번째 주)
+function isoWeek(d) {
+  const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = dt.getUTCDay() || 7;
+  dt.setUTCDate(dt.getUTCDate() + 4 - day);
+  const yStart = new Date(Date.UTC(dt.getUTCFullYear(), 0, 1));
+  return Math.ceil(((dt - yStart) / 86400000 + 1) / 7);
+}
+// 챌린지 진행일 (1~90), 범위 밖이면 null
+function challengeDayOf(dateStr) {
+  if (!challengeStart) return null;
+  const start = new Date(challengeStart + 'T00:00:00');
+  const d = new Date(dateStr + 'T00:00:00');
+  const idx = Math.floor((d - start) / 86400000);
+  return (idx >= 0 && idx < 90) ? idx + 1 : null;
+}
+
+function renderCalendar() {
+  const head = document.getElementById('cal-head');
+  const body = document.getElementById('cal-body');
+  const label = document.getElementById('cal-month-label');
+  if (!head || !body) return;
+
+  const year = calCursor.getFullYear(), month = calCursor.getMonth();
+  label.textContent = `${year}년 ${month+1}월`;
+
+  // 헤더 (주차 + 요일 + 주합계)
+  const dows = ['일','월','화','수','목','금','토'];
+  head.innerHTML = `<div>주</div>` +
+    dows.map((d,i)=>`<div class="${i===0?'ch-sun':i===6?'ch-sat':''}">${d}</div>`).join('') +
+    `<div>주합계</div>`;
+
+  // 날짜별 매매 집계
+  const byDate = {};
+  trades.filter(t => t.executed !== false).forEach(t => {
+    if (!t.date) return;
+    (byDate[t.date] = byDate[t.date] || []).push(t);
+  });
+
+  // 달력 시작(그 달 1일이 속한 주의 일요일)
+  const first = new Date(year, month, 1);
+  const gridStart = new Date(first);
+  gridStart.setDate(first.getDate() - first.getDay());
+  const todayStr = ymd(new Date());
+
+  let monthPnl = 0, monthTrades = 0, monthWins = 0;
+  let html = '';
+  let cur = new Date(gridStart);
+
+  for (let w = 0; w < 6; w++) {
+    // 다음 주 첫날이 이미 다음 달이고 이번 주 전체가 다음 달이면 중단
+    if (w > 0 && cur.getMonth() !== month && cur > first) {
+      // 이번 주에 이번 달 날짜가 하나도 없으면 종료
+      let hasThisMonth = false;
+      const probe = new Date(cur);
+      for (let i=0;i<7;i++){ if(probe.getMonth()===month){hasThisMonth=true;break;} probe.setDate(probe.getDate()+1); }
+      if (!hasThisMonth) break;
+    }
+    let weekPnl = 0, weekCnt = 0;
+    let cells = `<div class="cal-wk">${isoWeek(cur)}</div>`;
+    for (let i = 0; i < 7; i++) {
+      const dStr = ymd(cur);
+      const inMonth = cur.getMonth() === month;
+      const dayTrades = byDate[dStr] || [];
+      const dayPnl = dayTrades.reduce((s,t)=>s+pnlOf(t), 0);
+      const cnt = dayTrades.length;
+      const chalDay = challengeDayOf(dStr);
+      const over = dailyLossLimit && dayPnl <= -Math.abs(dailyLossLimit);
+
+      if (inMonth && cnt) { monthPnl += dayPnl; monthTrades += cnt; monthWins += dayTrades.filter(t=>t.result==='profit').length; }
+      if (inMonth) { weekPnl += dayPnl; weekCnt += cnt; }
+
+      let cls = 'cal-cell';
+      if (!inMonth) cls += ' other';
+      if (dStr === todayStr) cls += ' today';
+      if (cnt) {
+        cls += ' has ' + (dayPnl > 0 ? 'win' : dayPnl < 0 ? 'loss' : 'be');
+      }
+      if (chalDay) cls += ' chal';
+      if (over) cls += ' over';
+
+      const pnlCls = dayPnl > 0 ? 'pos' : dayPnl < 0 ? 'neg' : 'be';
+      const pnlStr = cnt ? `<div class="cal-day-pnl ${pnlCls}">${dayPnl>0?'+':''}${Math.round(dayPnl)}</div><div class="cal-day-cnt">${cnt}건</div>` : '';
+      const chalTag = chalDay ? `<span class="cal-chal-tag">D${chalDay}</span>` : '';
+      const overTag = over ? `<span class="cal-over-tag">⚠️</span>` : '';
+      const click = cnt ? ` onclick="openDayModal('${dStr}')"` : '';
+
+      cells += `<div class="${cls}"${click}>
+        <span class="cal-daynum">${cur.getDate()}</span>${chalTag}${pnlStr}${overTag}
+      </div>`;
+      cur.setDate(cur.getDate() + 1);
+    }
+    const wtCls = weekPnl > 0 ? 'pos' : weekPnl < 0 ? 'neg' : 'neu';
+    cells += `<div class="cal-wktot ${wtCls}">${weekCnt?(weekPnl>0?'+':'')+Math.round(weekPnl):'—'}<span class="wt-cnt">${weekCnt?weekCnt+'건':''}</span></div>`;
+    html += `<div class="cal-grid">${cells}</div>`;
+  }
+  body.innerHTML = html;
+
+  // 월 요약
+  const wr = monthTrades ? Math.round(monthWins/monthTrades*100) : 0;
+  const pCls = monthPnl > 0 ? 'pos' : monthPnl < 0 ? 'neg' : 'neu';
+  document.getElementById('cal-summary').innerHTML = `
+    <div class="cs-item"><span class="cs-label">월 손익</span><span class="cs-val ${pCls}">${monthPnl>0?'+':''}${Math.round(monthPnl)}</span></div>
+    <div class="cs-item"><span class="cs-label">매매 수</span><span class="cs-val neu">${monthTrades}</span></div>
+    <div class="cs-item"><span class="cs-label">승률</span><span class="cs-val neu">${wr}%</span></div>`;
+}
+
+function openDayModal(dStr) {
+  const dayTrades = trades.filter(t => t.date === dStr && t.executed !== false);
+  const total = dayTrades.reduce((s,t)=>s+pnlOf(t),0);
+  const chalDay = challengeDayOf(dStr);
+  const title = document.getElementById('cal-modal-title');
+  const body = document.getElementById('cal-modal-body');
+  const tCls = total>0?'pos':total<0?'neg':'be';
+  title.innerHTML = `${dStr} <span style="font-size:12px;color:var(--muted)">${chalDay?'· 챌린지 D'+chalDay:''}</span>`;
+  const resLabel = { profit:'🟢 수익', loss:'🔴 손실', be:'🟡 본절', pass:'⚪ 패스' };
+  body.innerHTML =
+    `<div class="cal-mt-row"><div><div class="cal-mt-sym">합계</div><div class="cal-mt-sub">${dayTrades.length}건</div></div><div class="cal-mt-pnl ${tCls}">${total>0?'+':''}${Math.round(total)}</div></div>` +
+    dayTrades.map(t => {
+      const p = pnlOf(t);
+      const pc = t.result==='pass'?'neu':(p>0?'pos':p<0?'neg':'be');
+      const sym = (t.symbol||'—').replace('.P','');
+      const dir = t.dir==='long'?'🔼 롱':t.dir==='short'?'🔽 숏':'';
+      return `<div class="cal-mt-row">
+        <div><div class="cal-mt-sym">${sym} <span style="font-size:10px;color:var(--muted)">${dir}</span></div>
+        <div class="cal-mt-sub">${resLabel[t.result]||''} ${t.entryTime||''}</div></div>
+        <div class="cal-mt-pnl ${pc}">${t.result==='pass'?'—':(p>0?'+':'')+Math.round(p)}</div>
+      </div>`;
+    }).join('');
+  document.getElementById('cal-modal').classList.add('show');
+}
+function closeDayModal() {
+  document.getElementById('cal-modal').classList.remove('show');
 }
 
 // ── Init ──
