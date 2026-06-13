@@ -337,19 +337,21 @@ body::before {
   position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
 }
 
-.img-preview-wrap {
-  position: relative; border-radius: 12px; overflow: hidden;
-  border: 1px solid var(--border2); display: none;
+.img-preview-list {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;
 }
-.img-preview-wrap.has-img { display: block; }
-.img-preview {
+.img-preview-item {
+  position: relative; border-radius: 10px; overflow: hidden;
+  border: 1px solid var(--border2); flex: 1 1 calc(50% - 4px); min-width: 120px;
+}
+.img-preview-item img {
   width: 100%; display: block;
-  max-height: 240px; object-fit: contain;
+  max-height: 180px; object-fit: contain;
   background: #08080f;
 }
 .img-preview-bar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 12px; background: rgba(0,0,0,0.5);
+  padding: 6px 10px; background: rgba(0,0,0,0.6);
   position: absolute; bottom: 0; left: 0; right: 0;
 }
 .img-preview-label { font-size: 10px; color: var(--accent4); letter-spacing: 1px; }
@@ -370,12 +372,16 @@ body::before {
 }
 
 /* Chart in history card */
-.trade-chart {
-  margin-top: 10px; border-radius: 8px; overflow: hidden;
-  border: 1px solid var(--border); display: none;
+.trade-charts {
+  margin-top: 10px; display: none; flex-wrap: wrap; gap: 6px;
 }
-.trade-card.expanded .trade-chart { display: block; }
-.trade-chart img { width: 100%; display: block; background: #08080f; }
+.trade-card.expanded .trade-charts { display: flex; }
+.trade-charts img {
+  flex: 1 1 calc(50% - 3px); min-width: 100px;
+  display: block; background: #08080f;
+  border-radius: 8px; border: 1px solid var(--border);
+  max-height: 200px; object-fit: contain; width: 100%;
+}
 
 /* Toast */
 .toast {
@@ -1122,21 +1128,15 @@ body::before {
 
   <div class="sec">
     <div class="sec-title">📊 차트 캡처</div>
-    <div class="img-preview-wrap" id="imgPreviewWrap">
-      <img class="img-preview" id="imgPreview" src="" alt="chart">
-      <div class="img-preview-bar">
-        <span class="img-preview-label">📊 CHART</span>
-        <button class="img-clear" onclick="clearChart()">✕ 제거</button>
-      </div>
-    </div>
+    <div class="img-preview-list" id="imgPreviewList"></div>
     <div class="img-drop" id="imgDrop"
       ondragover="handleDragOver(event)"
       ondragleave="handleDragLeave(event)"
       ondrop="handleDrop(event)">
-      <input type="file" accept="image/*" onchange="handleFileInput(event)">
+      <input type="file" accept="image/*" multiple onchange="handleFileInput(event)">
       <div class="img-drop-icon">📈</div>
       <div class="img-drop-text">파일을 드래그하거나 클릭하여 업로드</div>
-      <div class="img-drop-hint">PNG · JPG · WEBP 지원</div>
+      <div class="img-drop-hint">PNG · JPG · WEBP · 여러 장 가능</div>
     </div>
     <div style="text-align:center">
       <span class="paste-badge">⌨️ Ctrl+V 로 화면 캡처 바로 붙여넣기 가능</span>
@@ -1362,7 +1362,7 @@ async function fbSave() {
   try {
     const payload = {
       trades: trades.map(t => {
-        const { chart, ...rest } = t;   // chart 는 로컬에만 보관
+        const { chart, charts, ...rest } = t;   // 이미지는 로컬에만 보관
         return rest;
       }),
       weekplan: getWeekPlanData(),
@@ -1452,16 +1452,22 @@ function mergeLocalCharts() {
   try {
     const raw = localStorage.getItem('ljh-charts');
     if (!raw) return;
-    const charts = JSON.parse(raw); // { [id]: base64 }
-    trades = trades.map(t => ({ ...t, chart: charts[t.id] || null }));
+    const charts = JSON.parse(raw); // { [id]: base64 | base64[] }
+    trades = trades.map(t => {
+      const stored = charts[t.id];
+      if (!stored) return t;
+      // 구버전 호환: 문자열이면 배열로 변환
+      const arr = Array.isArray(stored) ? stored : [stored];
+      return { ...t, charts: arr };
+    });
   } catch(e) {}
 }
 
-function saveChartLocally(id, base64) {
+function saveChartLocally(id, base64arr) {
   try {
     const raw = localStorage.getItem('ljh-charts');
     const charts = raw ? JSON.parse(raw) : {};
-    if (base64) charts[id] = base64; else delete charts[id];
+    if (base64arr && base64arr.length) charts[id] = base64arr; else delete charts[id];
     localStorage.setItem('ljh-charts', JSON.stringify(charts));
   } catch(e) {}
 }
@@ -1488,7 +1494,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── Chart image state ──
-let chartBase64 = null;
+let chartBase64s = [];
 
 function compressImage(file, cb) {
   const reader = new FileReader();
@@ -1508,23 +1514,37 @@ function compressImage(file, cb) {
   reader.readAsDataURL(file);
 }
 
-function setChartPreview(base64) {
-  chartBase64 = base64;
-  document.getElementById('imgPreview').src = base64;
-  document.getElementById('imgPreviewWrap').classList.add('has-img');
-  document.getElementById('imgDrop').style.display = 'none';
+function renderChartPreviews() {
+  const list = document.getElementById('imgPreviewList');
+  list.innerHTML = chartBase64s.map((b64, i) => `
+    <div class="img-preview-item">
+      <img src="${b64}" alt="chart ${i+1}">
+      <div class="img-preview-bar">
+        <span class="img-preview-label">📊 CHART ${chartBase64s.length > 1 ? i+1 : ''}</span>
+        <button class="img-clear" onclick="removeChart(${i})">✕ 제거</button>
+      </div>
+    </div>`).join('');
 }
 
-function clearChart() {
-  chartBase64 = null;
-  document.getElementById('imgPreview').src = '';
-  document.getElementById('imgPreviewWrap').classList.remove('has-img');
-  document.getElementById('imgDrop').style.display = '';
+function addChartPreview(base64) {
+  chartBase64s.push(base64);
+  renderChartPreviews();
+}
+
+function removeChart(index) {
+  chartBase64s.splice(index, 1);
+  renderChartPreviews();
+}
+
+function clearAllCharts() {
+  chartBase64s = [];
+  document.getElementById('imgPreviewList').innerHTML = '';
 }
 
 function handleFileInput(e) {
-  const f = e.target.files[0];
-  if (f) compressImage(f, setChartPreview);
+  const files = Array.from(e.target.files);
+  files.forEach(f => compressImage(f, addChartPreview));
+  e.target.value = '';
 }
 
 function handleDragOver(e) {
@@ -1539,8 +1559,8 @@ function handleDragLeave(e) {
 function handleDrop(e) {
   e.preventDefault();
   document.getElementById('imgDrop').classList.remove('drag-over');
-  const f = e.dataTransfer.files[0];
-  if (f && f.type.startsWith('image/')) compressImage(f, setChartPreview);
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+  files.forEach(f => compressImage(f, addChartPreview));
 }
 
 // Paste support (Ctrl+V)
@@ -1550,7 +1570,7 @@ document.addEventListener('paste', e => {
     if (!items) return;
     for (const item of items) {
       if (item.type.startsWith('image/')) {
-        compressImage(item.getAsFile(), setChartPreview);
+        compressImage(item.getAsFile(), addChartPreview);
         showToast('📊 차트 이미지 붙여넣기 완료');
         break;
       }
@@ -1848,7 +1868,7 @@ async function saveTrade() {
     basis: document.getElementById('f-basis').value,
     reflect: document.getElementById('f-reflect').value,
     psych: document.getElementById('f-psych').value,
-    chart: chartBase64 || null,
+    charts: chartBase64s.length ? [...chartBase64s] : [],
     executed: true,
     goNogo: lastJudgeScore !== null ? (lastJudgeScore >= 90 ? 'go' : 'no-go') : null,
     score: lastJudgeScore,
@@ -1863,7 +1883,7 @@ async function saveTrade() {
   trade.discScore = tradeDiscScore(trade);
   trades.unshift(trade);
   // 차트는 localStorage, 나머지는 Firebase
-  if (chartBase64) saveChartLocally(id, chartBase64);
+  if (chartBase64s.length) saveChartLocally(id, [...chartBase64s]);
   showToast('저장 중...');
   await fbSave();
   showToast('✓ 저장 완료 (동기화됨)');
@@ -1884,7 +1904,7 @@ function resetForm() {
   document.getElementById('f-reflect').value='';
   document.getElementById('f-psych').value='';
   formDir=null; formPnl=null;
-  clearChart();
+  clearAllCharts();
   document.querySelectorAll('.dir-btn,.pnl-btn').forEach(b=>b.classList.remove('active'));
   resetDiscChips();
 }
@@ -1988,7 +2008,7 @@ function renderHistory() {
         ${execBadge}
         ${dsBadge}
       </div>
-      ${(t.basis||t.reflect||t.chart||entryStr||exitStr)?`
+      ${(t.basis||t.reflect||(t.charts&&t.charts.length)||t.chart||entryStr||exitStr)?`
       <div class="trade-note">
         ${(entryStr||exitStr)?`<div style="margin-bottom:6px;display:flex;gap:16px">
           ${entryStr?`<span><span style="color:var(--accent4);font-size:10px;letter-spacing:1px">진입</span> <span style="color:var(--text)">${entryStr}</span></span>`:''}
@@ -1997,7 +2017,7 @@ function renderHistory() {
         ${t.basis?`<div style="margin-bottom:6px"><span style="color:var(--accent4);font-size:10px;letter-spacing:1px">진입근거</span><br>${t.basis}</div>`:''}
         ${t.reflect?`<div><span style="color:var(--accent2);font-size:10px;letter-spacing:1px">반성</span><br>${t.reflect}</div>`:''}
       </div>`:''}
-      ${t.chart?`<div class="trade-chart"><img src="${t.chart}" alt="chart" loading="lazy"></div>`:''}
+      ${(()=>{const imgs=(t.charts&&t.charts.length)?t.charts:(t.chart?[t.chart]:[]);return imgs.length?`<div class="trade-charts">${imgs.map((s,i)=>`<img src="${s}" alt="chart ${i+1}" loading="lazy">`).join('')}</div>`:'';})()
     </div>`;
   }).join('');
 }
