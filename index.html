@@ -2017,7 +2017,7 @@ function renderHistory() {
         ${t.basis?`<div style="margin-bottom:6px"><span style="color:var(--accent4);font-size:10px;letter-spacing:1px">진입근거</span><br>${t.basis}</div>`:''}
         ${t.reflect?`<div><span style="color:var(--accent2);font-size:10px;letter-spacing:1px">반성</span><br>${t.reflect}</div>`:''}
       </div>`:''}
-      ${(()=>{const imgs=(t.charts&&t.charts.length)?t.charts:(t.chart?[t.chart]:[]);return imgs.length?`<div class="trade-charts">${imgs.map((s,i)=>`<img src="${s}" alt="chart ${i+1}" loading="lazy">`).join('')}</div>`:'';})()
+      ${(()=>{const imgs=(t.charts&&t.charts.length)?t.charts:(t.chart?[t.chart]:[]);return imgs.length?`<div class="trade-charts">${imgs.map((s,i)=>`<img src="${s}" alt="chart ${i+1}" loading="lazy">`).join('')}</div>`:'';})()}
     </div>`;
   }).join('');
 }
