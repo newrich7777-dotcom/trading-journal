@@ -219,6 +219,9 @@ body::before {
 }
 .flow-opt:hover { border-color:var(--border2); color:var(--text); }
 .flow-opt.on { background:rgba(0,255,136,0.12); border-color:rgba(0,255,136,0.5); color:var(--accent); box-shadow:0 0 12px rgba(0,255,136,0.12); }
+.mode-opt { font-weight:600; padding:10px 18px; }
+.flow-sub { margin-top:12px; padding-top:12px; border-top:1px dashed var(--border); animation:fadeUp .3s ease both; }
+.flow-sub-label { font-size:10px; letter-spacing:1px; color:var(--muted); text-transform:uppercase; margin-bottom:8px; }
 
 /* ── Progress ── */
 .progress-wrap { margin-bottom:20px; animation:fadeUp 0.4s ease 0.3s both; }
@@ -974,7 +977,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   <div class="progress-wrap">
     <div class="progress-header">
       <span class="progress-label">Progress</span>
-      <span class="progress-count" id="progressCount">0 / 5</span>
+      <span class="progress-count" id="progressCount">0 / 4</span>
     </div>
     <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
   </div>
@@ -1016,50 +1019,37 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
       </div>
     </div>
 
-    <!-- STEP 3 — 파동의 끝 -->
+    <!-- STEP 3 — 진입 결정 -->
     <div class="flow-step" id="step-3">
       <div class="flow-node">3</div>
       <div class="flow-body">
         <div class="flow-head">
-          <span class="flow-title">파동의 끝</span>
+          <span class="flow-title">진입 결정</span>
           <span class="flow-status">대기</span>
         </div>
-        <div class="flow-desc">파동 종료 신호 (하나 이상 충족)</div>
+        <div class="flow-desc">매매 방식 선택 → 진입 근거 확정</div>
         <div class="flow-opts">
-          <button class="flow-opt" onclick="pickEnd(this,'tri')">🔺 삼각수렴</button>
-          <button class="flow-opt" onclick="pickEnd(this,'rsi')">📉 RSI 다이버전스</button>
-          <button class="flow-opt" onclick="pickEnd(this,'diag')">🔻 엔딩다이아고날</button>
+          <button class="flow-opt mode-opt" onclick="pickEntryMode(this,'break')">⚡ 돌파매매</button>
+          <button class="flow-opt mode-opt" onclick="pickEntryMode(this,'limit')">🎯 지정가매매</button>
+        </div>
+        <div class="flow-sub" id="entry-sub" style="display:none;">
+          <div class="flow-sub-label" id="entry-sub-label"></div>
+          <div class="flow-opts" id="entry-sub-opts"></div>
         </div>
       </div>
     </div>
 
-    <!-- STEP 4 — 진입 트리거 -->
+    <!-- STEP 4 — 리스크 관리 -->
     <div class="flow-step" id="step-4">
       <div class="flow-node">4</div>
-      <div class="flow-body">
-        <div class="flow-head">
-          <span class="flow-title">진입 트리거</span>
-          <span class="flow-status">대기</span>
-        </div>
-        <div class="flow-desc">0-B 추세선 돌파 확인 후 진입 · 이탈 전 선진입 절대 금지</div>
-        <div class="flow-opts">
-          <button class="flow-opt" onclick="pickTrigger(this,'obbreak')">0-B 추세선 돌파</button>
-          <button class="flow-opt" onclick="pickTrigger(this,'volume')">거래량 확인</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- STEP 5 — 리스크 관리 -->
-    <div class="flow-step" id="step-5">
-      <div class="flow-node">5</div>
       <div class="flow-body">
         <div class="flow-head">
           <span class="flow-title">리스크 관리</span>
           <span class="flow-status">대기</span>
         </div>
-        <div class="flow-desc">손절: C파 저점(롱)/고점(숏) 고정 · 익절: 새 파동 끝 · 손익비 최소 1:2</div>
+        <div class="flow-desc">손절 · 배수 설정 · 투입 시드 결정 · 손익비 설정 (최소 1:2)</div>
         <div class="flow-opts">
-          <button class="flow-opt" onclick="toggleStepSingle(this,5)">손절 / 익절 / 손익비 설정 완료</button>
+          <button class="flow-opt" onclick="toggleStepSingle(this,4)">손절 / 배수 / 투입시드 / 손익비 설정 완료</button>
         </div>
       </div>
     </div>
@@ -1394,10 +1384,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 
 <script>
 // ── State ──
-const cState = {1:false,2:false,3:false,4:false,5:false};
+const cState = {1:false,2:false,3:false,4:false};
 let patternChoice = null;                         // step 2: 'tri'|'abc'|'impulse'|'wedge'
-const endState = {tri:false, rsi:false, diag:false}; // step 3 (multi)
-const triggerState = {obbreak:false, volume:false};   // step 4 (multi)
+let entryMode = null;                              // step 3: 'break'|'limit'
+let entryChoice = null;                            // step 3 sub option
 let formDir = null;
 let formPnl = null;
 let currentFilter = 'all';
@@ -1726,18 +1716,22 @@ function goPage(name) {
 
 // ── Judge (GO / NO-GO) ──
 const PATTERN_LABELS = { tri:'삼각수렴', abc:'ABC', impulse:'임펄스', wedge:'웻지' };
-const END_LABELS = { tri:'삼각수렴', rsi:'RSI 다이버전스', diag:'엔딩다이아고날' };
+const ENTRY_MODE_LABELS = { break:'돌파매매', limit:'지정가매매' };
+const ENTRY_SUB = {
+  break: { trisbreak:'삼각수렴 돌파' },
+  limit: { abcend:'ABC 종료', wedgeend:'웻지 종료', impulseend:'임펄스 종료' }
+};
+const ENTRY_SUB_LABELS = { trisbreak:'삼각수렴 돌파', abcend:'ABC 종료', wedgeend:'웻지 종료', impulseend:'임펄스 종료' };
 const JUDGE_CONDS = {
-  1: '1D 추세 방향 확인',
+  1: '방향 확인 (1D 추세)',
   2: '패턴식별 (삼각수렴/ABC/임펄스/웻지)',
-  3: '파동의 끝 (삼각수렴/RSI 다이버전스/엔딩다이아고날)',
-  4: '진입 트리거 (0-B 추세선 돌파 / 거래량 확인)',
-  5: '손절 / 익절 / 손익비 설정'
+  3: '진입 결정 (돌파매매 / 지정가매매)',
+  4: '리스크 관리 (손절/배수/시드/손익비)'
 };
 
 function getCurrentCheckScore() {
   const total = Object.values(cState).filter(Boolean).length;
-  return Math.round(total / 5 * 100);
+  return Math.round(total / 4 * 100);
 }
 
 function renderJudge() {
@@ -1763,13 +1757,8 @@ function renderJudge() {
     let shown = label;
     // 선택한 세부 항목을 라벨에 반영
     if (n===2 && patternChoice) shown = '패턴식별 · ' + PATTERN_LABELS[patternChoice];
-    if (n===3 && ok) {
-      const picks = Object.keys(endState).filter(x=>endState[x]).map(x=>END_LABELS[x]);
-      if (picks.length) shown = '파동의 끝 · ' + picks.join(', ');
-    }
-    if (n===4 && ok) {
-      const picks = Object.keys(triggerState).filter(x=>triggerState[x]).map(x=>TRIGGER_LABELS[x]);
-      if (picks.length) shown = '진입 트리거 · ' + picks.join(', ');
+    if (n===3 && ok && entryMode && entryChoice) {
+      shown = '진입 결정 · ' + ENTRY_MODE_LABELS[entryMode] + ' (' + ENTRY_SUB_LABELS[entryChoice] + ')';
     }
     return `<div class="judge-cond-row ${ok ? 'ok' : 'ng'}">
       <span class="judge-cond-dot"></span>
@@ -1901,7 +1890,7 @@ function stepUnlocked(n) {
 }
 
 function renderFlow() {
-  for (let n=1; n<=5; n++) {
+  for (let n=1; n<=4; n++) {
     const step = document.getElementById('step-'+n);
     if (!step) continue;
     step.classList.remove('active','done','locked');
@@ -1922,14 +1911,13 @@ function renderFlow() {
 
 // 이후 단계 초기화 (앞 단계를 해제하면 뒷 단계도 리셋)
 function resetFrom(n) {
-  for (let i=n; i<=5; i++) {
+  for (let i=n; i<=4; i++) {
     cState[i] = false;
     const step = document.getElementById('step-'+i);
     if (step) step.querySelectorAll('.flow-opt').forEach(b=>b.classList.remove('on'));
   }
   if (n <= 2) patternChoice = null;
-  if (n <= 3) { endState.tri=false; endState.rsi=false; endState.diag=false; }
-  if (n <= 4) { triggerState.obbreak=false; triggerState.volume=false; }
+  if (n <= 3) { entryMode = null; entryChoice = null; renderEntrySub(); }
 }
 
 // STEP 1 / 4 / 5 — 단일 확인
@@ -1957,36 +1945,54 @@ function pickPattern(el, type) {
   renderFlow();
 }
 
-// STEP 3 — 파동의 끝 (하나 이상)
-function pickEnd(el, key) {
+// STEP 3 — 진입 결정 (돌파매매 / 지정가매매 중 하나 → 근거 선택)
+function pickEntryMode(el, mode) {
   if (!stepUnlocked(3)) return;
   addRipple(el);
-  endState[key] = !endState[key];
-  el.classList.toggle('on', endState[key]);
-  cState[3] = Object.values(endState).some(Boolean);
+  if (entryMode === mode) {
+    entryMode = null; entryChoice = null; cState[3] = false;
+  } else {
+    entryMode = mode; entryChoice = null; cState[3] = false;
+  }
+  document.querySelectorAll('#step-3 .mode-opt').forEach(b=>b.classList.remove('on'));
+  if (entryMode) el.classList.add('on');
+  renderEntrySub();
   if (!cState[3]) resetFrom(4);
   renderFlow();
 }
 
-// STEP 4 — 진입 트리거 (multi)
-const TRIGGER_LABELS = { obbreak:'0-B 추세선 돌파', volume:'거래량 확인' };
-function pickTrigger(el, key) {
-  if (!stepUnlocked(4)) return;
+function renderEntrySub() {
+  const sub = document.getElementById('entry-sub');
+  const opts = document.getElementById('entry-sub-opts');
+  const label = document.getElementById('entry-sub-label');
+  if (!sub || !opts || !label) return;
+  if (!entryMode) { sub.style.display='none'; opts.innerHTML=''; return; }
+  sub.style.display='block';
+  label.textContent = ENTRY_MODE_LABELS[entryMode] + ' 진입 근거 선택';
+  const subs = ENTRY_SUB[entryMode];
+  opts.innerHTML = Object.entries(subs).map(([k,v]) =>
+    `<button class="flow-opt ${entryChoice===k?'on':''}" onclick="pickEntryChoice(this,'${k}')">${v}</button>`
+  ).join('');
+}
+
+function pickEntryChoice(el, key) {
+  if (!stepUnlocked(3)) return;
   addRipple(el);
-  triggerState[key] = !triggerState[key];
-  el.classList.toggle('on', triggerState[key]);
-  cState[4] = Object.values(triggerState).some(Boolean);
-  if (!cState[4]) resetFrom(5);
+  if (entryChoice === key) { entryChoice = null; cState[3] = false; }
+  else { entryChoice = key; cState[3] = true; }
+  document.querySelectorAll('#entry-sub-opts .flow-opt').forEach(b=>b.classList.remove('on'));
+  if (entryChoice) el.classList.add('on');
+  if (!cState[3]) resetFrom(4);
   renderFlow();
 }
 
 function updateResult() {
   const total = Object.values(cState).filter(Boolean).length;
-  document.getElementById('progressCount').textContent = `${total} / 5`;
-  document.getElementById('progressFill').style.width = `${total/5*100}%`;
+  document.getElementById('progressCount').textContent = `${total} / 4`;
+  document.getElementById('progressFill').style.width = `${total/4*100}%`;
   const r = document.getElementById('result');
   r.className='result';
-  if (total===5) {
+  if (total===4) {
     r.classList.add('go');
     r.innerHTML=`<span class="result-emoji">🟢</span><div class="result-title">진입 가능</div><div class="result-desc">모든 조건 충족<br><strong style="color:var(--accent)">진입 허가</strong><br><br><span style="font-size:11px;opacity:.7">시드의 ${riskPct}% 이내 / 손절 절대 변경 금지</span></div>`;
   } else if (total===0) {
@@ -1994,15 +2000,15 @@ function updateResult() {
     r.innerHTML=`<span class="result-emoji">📋</span><div class="result-title">대기 중</div><div class="result-desc">체크리스트를 순서대로 확인하세요</div>`;
   } else {
     r.classList.add('no');
-    r.innerHTML=`<span class="result-emoji">🔴</span><div class="result-title">진입 금지</div><div class="result-desc">${5-total}개 조건 미충족<br><strong style="color:var(--accent2)">진입 불가</strong><br><br><span style="font-size:11px;opacity:.7">모든 조건이 충족될 때까지 기다린다</span></div>`;
+    r.innerHTML=`<span class="result-emoji">🔴</span><div class="result-title">진입 금지</div><div class="result-desc">${4-total}개 조건 미충족<br><strong style="color:var(--accent2)">진입 불가</strong><br><br><span style="font-size:11px;opacity:.7">모든 조건이 충족될 때까지 기다린다</span></div>`;
   }
 }
 
 function resetChecks() {
   for (let k in cState) cState[k]=false;
   patternChoice = null;
-  endState.tri=false; endState.rsi=false; endState.diag=false;
-  triggerState.obbreak=false; triggerState.volume=false;
+  entryMode = null; entryChoice = null;
+  renderEntrySub();
   document.querySelectorAll('.flow-opt').forEach(el=>el.classList.remove('on'));
   renderFlow();
 }
