@@ -1689,11 +1689,14 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   </div>
 
   <!-- 날짜 이동 -->
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;justify-content:center">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;justify-content:center">
     <button class="sec-btn" onclick="dailyShift(-1)">◀</button>
     <span id="daily-date-label" style="font-size:16px;letter-spacing:2px;min-width:120px;text-align:center"></span>
     <button class="sec-btn" onclick="dailyShift(1)">▶</button>
     <button class="sec-btn" onclick="dailyToday()" style="font-size:10px;letter-spacing:1px">오늘</button>
+  </div>
+  <div style="text-align:center;margin-bottom:20px;font-size:12px;letter-spacing:1px">
+    <span id="daily-week-trend"></span>
   </div>
 
   <!-- 편향 -->
@@ -2340,6 +2343,11 @@ function renderJudge() {
   const hasAny = score > 0;
   const cls   = !hasAny ? 'neu' : isGo ? 'go' : 'no';
 
+  // ── 오늘 매매금지 여부 확인 ──
+  const todayKey2 = dailyKey(new Date());
+  const todayBr   = dailyBriefs[todayKey2] || {};
+  const noTradeDay = todayBr.noTrade || todayBr.bias === 'wait';
+
   const numEl = document.getElementById('judge-score-num');
   numEl.textContent = score + '%';
   numEl.className   = 'judge-score-num ' + cls;
@@ -2390,11 +2398,36 @@ function renderJudge() {
     subEl.textContent   = score + '% 충족 (' + Object.values(cState).filter(Boolean).length + '/5 조건)\n미진입 기록을 남기고 다음 셋업을 기다립니다';
   }
 
-  document.getElementById('judge-go-section').style.display   = isGo   ? 'block' : 'none';
-  document.getElementById('judge-nogo-section').style.display = !hasAny ? 'none'  : isGo ? 'none' : 'block';
+  // GO 버튼: 관망일이면 비활성화
+  const goSection = document.getElementById('judge-go-section');
+  if (isGo) {
+    if (noTradeDay) {
+      goSection.style.display = 'block';
+      goSection.innerHTML = `<div style="padding:14px;background:rgba(255,170,0,0.1);border:1px solid rgba(255,170,0,0.3);border-radius:var(--radius-sm);text-align:center">
+        <div style="color:var(--accent3);font-size:13px;font-weight:500;margin-bottom:6px">⚠️ 오늘 매매금지일</div>
+        <div style="color:var(--muted2);font-size:12px;margin-bottom:10px">일일 브리핑에서 관망 또는 노트레이드가 설정됐습니다.<br>진입 시 <strong style="color:var(--accent2)">규율위반(stopNotHonored)</strong>으로 기록됩니다.</div>
+        <button class="go-action-btn" onclick="onJudgeGoForced()" style="background:rgba(255,170,0,0.2);border-color:rgba(255,170,0,0.4)">⚠️ 그래도 진입 기록 작성 →</button>
+      </div>`;
+    } else {
+      goSection.style.display = 'block';
+      goSection.innerHTML = `<button class="go-action-btn" onclick="onJudgeGo()">🟢 진입 기록 작성 →</button>`;
+    }
+  } else {
+    goSection.style.display = 'none';
+  }
+
+  document.getElementById('judge-nogo-section').style.display = !hasAny ? 'none' : isGo ? 'none' : 'block';
 }
 
 function onJudgeGo() {
+  goPage('entry');
+}
+
+function onJudgeGoForced() {
+  // 관망일에 진입: discState에 규율위반 자동 표시
+  discState.hard = discState.hard || {};
+  discState.hard.noPlan = true; // 관망일 진입 = 계획 없는 진입으로 간주
+  showToast('⚠️ 관망일 진입 — 규율위반(계획 없음)이 자동 기록됩니다');
   goPage('entry');
 }
 
@@ -2773,16 +2806,22 @@ async function saveTrade() {
   const rrVal = calcRR();
   if (rrVal !== null) trade.rr = parseFloat(rrVal.toFixed(2));
 
-  // ── 손절 위반 자동 감지 ──
-  if (trade.stop && trade.entry && trade.exit && formPnl === 'loss') {
-    const ep = parseFloat(trade.entry), sp = parseFloat(trade.stop), xp = parseFloat(trade.exit);
-    if (trade.dir === 'long'  && xp < sp) { showToast('⚠️ 손절가 아래에서 청산 — 손절 미준수 위험!'); }
-    if (trade.dir === 'short' && xp > sp) { showToast('⚠️ 손절가 위에서 청산 — 손절 미준수 위험!'); }
-  }
-
   // ── 디시플린 기록 ──
   const hard = { ...discState.hard };
   if (trade.psych === 'Drunken ⚠️') hard.drunk = true;       // 음주 매매 자동 위반
+
+  // 손절 위반 자동 감지: 제안(강제 아님) — 경고 토스트 후 hard 플래그 자동 설정
+  let stopViolated = false;
+  if (trade.stop && trade.entry && trade.exit && formPnl === 'loss') {
+    const sp = parseFloat(trade.stop), xp = parseFloat(trade.exit);
+    if (trade.dir === 'long'  && xp < sp) stopViolated = true;
+    if (trade.dir === 'short' && xp > sp) stopViolated = true;
+  }
+  if (stopViolated) {
+    hard.stopNotHonored = true;
+    showToast('⚠️ 손절가 이탈 감지 — 손절 미준수가 자동 기록됩니다');
+  }
+
   const check = { ...discState.check };
   if (trade.basis && trade.reflect) check.loggedAfter = true; // 근거+반성 작성 시 자동 체크
   if (trade.rr >= 2) check.rrOk = true;                       // R:R≥2 자동 충족
@@ -3566,6 +3605,15 @@ function renderDaily() {
   const label = document.getElementById('daily-date-label');
   if (label) label.textContent = key + (isToday ? ' (오늘)' : '');
 
+  // 이번 주 추세 자동 표시
+  const trendEl = document.getElementById('daily-week-trend');
+  if (trendEl) {
+    const curPlan = weekPlans[isoWeekKey(dailyAnchor)] || {};
+    const trendMap = { long:'▲ 롱 추세', short:'▼ 숏 추세', sideways:'↔ 횡보' };
+    trendEl.textContent = curPlan.trend ? ('주간 추세: ' + (trendMap[curPlan.trend] || curPlan.trend)) : '';
+    trendEl.style.color = curPlan.trend === 'long' ? 'var(--accent)' : curPlan.trend === 'short' ? 'var(--accent2)' : 'var(--muted2)';
+  }
+
   // fill fields
   const fill = (id, val) => { const el = document.getElementById(id); if (el) { el.value = val || ''; el.disabled = locked; } };
   fill('daily-resBTC', br.resBTC);
@@ -3620,6 +3668,27 @@ function renderDaily() {
 // ══════════════════════════════════
 // STATS DASHBOARD
 // ══════════════════════════════════
+function buildRRSection(rrTrades, barSVG, grpWR, grpAvg) {
+  if (rrTrades.length < 3) return '<div style="color:var(--muted);font-size:12px">손절가 데이터 부족 (3건 이상 필요)</div>';
+  const rrGrp = { '≥2R':[], '1–2R':[], '<1R':[] };
+  rrTrades.forEach(function(t) {
+    if (t.rr >= 2) rrGrp['≥2R'].push(t);
+    else if (t.rr >= 1) rrGrp['1–2R'].push(t);
+    else rrGrp['<1R'].push(t);
+  });
+  return Object.entries(rrGrp).map(function(entry) {
+    const k = entry[0], arr = entry[1];
+    if (!arr.length) return '';
+    const wr2 = grpWR(arr), avg = grpAvg(arr), aCls = avg>=0?'pos':'neg';
+    return '<div class="bar-row">' +
+      '<span class="bar-label" style="min-width:60px;font-size:11px">' + k + '</span>' +
+      barSVG(wr2, 'pos') +
+      '<span class="bar-val" style="min-width:35px">' + wr2 + '%</span>' +
+      '<span class="bar-val ' + aCls + '" style="min-width:55px">' + (avg>=0?'+':'') + avg.toFixed(1) + '</span>' +
+      '<span style="font-size:10px;color:var(--muted)">' + arr.length + '건</span></div>';
+  }).join('');
+}
+
 function renderStats() {
   const el = document.getElementById('stats-body');
   if (!el) return;
@@ -3640,6 +3709,18 @@ function renderStats() {
   // Max consecutive losses
   let maxCL = 0, curCL = 0;
   ts.slice().reverse().forEach(t => { if (t.result==='loss') { curCL++; maxCL=Math.max(maxCL,curCL); } else curCL=0; });
+
+  // 관망일 매매 위반 횟수
+  const noTradeDates = new Set(
+    Object.entries(dailyBriefs)
+      .filter(([,b]) => b.noTrade || b.bias === 'wait')
+      .map(([k]) => k)
+  );
+  const noTradeViolCount = trades.filter(t => t.executed !== false && noTradeDates.has(t.date)).length;
+
+  // RR 통계 (stop 데이터 있는 거래만)
+  const rrTrades = ts.filter(t => t.rr != null);
+  const avgRR = rrTrades.length ? rrTrades.reduce((s,t)=>s+(t.rr||0),0)/rrTrades.length : null;
 
   // discipline group comparison (≥80 vs <80)
   const disc80  = ts.filter(t => t.discScore !== null && t.discScore !== undefined && t.discScore >= 80);
@@ -3695,6 +3776,8 @@ function renderStats() {
       <div class="stat-card"><div class="stat-card-label">평균 손실</div><div class="stat-card-val neg">-${avgL.toFixed(2)}</div></div>
       <div class="stat-card"><div class="stat-card-label">최대 연속 손실</div><div class="stat-card-val neg">${maxCL}연속</div></div>
       <div class="stat-card"><div class="stat-card-label">누적 손익</div><div class="stat-card-val ${gross-grossL>=0?'pos':'neg'}">${gross-grossL>=0?'+':''}${(gross-grossL).toFixed(2)}</div></div>
+      <div class="stat-card"><div class="stat-card-label">평균 R:R</div><div class="stat-card-val ${avgRR!=null?(avgRR>=2?'pos':'neu'):'neu'}">${avgRR!=null?avgRR.toFixed(2)+'R':'—'}</div></div>
+      <div class="stat-card" title="관망일/노트레이드로 설정한 날 진입한 횟수"><div class="stat-card-label">관망일 매매위반</div><div class="stat-card-val ${noTradeViolCount>0?'neg':'pos'}">${noTradeViolCount}건</div></div>
     </div>
 
     <!-- 규율 준수율 비교 -->
@@ -3719,6 +3802,10 @@ function renderStats() {
     <!-- 종류별 -->
     <div class="stat-sec-title">매매 종류별 성과</div>
     <div class="sec" style="margin-bottom:16px">${groupBy('type')}</div>
+
+    <!-- R:R 구간별 -->
+    <div class="stat-sec-title">R:R 구간별 성과 <span style="font-size:10px;color:var(--muted)">(손절가 입력된 ${rrTrades.length}건)</span></div>
+    <div class="sec" style="margin-bottom:16px">${buildRRSection(rrTrades, barSVG, grpWR, grpAvg)}</div>
   `;
 }
 
