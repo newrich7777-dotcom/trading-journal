@@ -161,6 +161,65 @@ body::before {
 .sub-btn:hover { border-color:var(--accent3); color:var(--accent3); }
 .sub-btn.active { background:rgba(255,170,0,0.12); border-color:var(--accent3); color:var(--accent3); }
 
+/* ── Flow Checklist ── */
+.flow { position:relative; }
+.flow-step { display:flex; gap:16px; position:relative; }
+/* connector line */
+.flow-step::before {
+  content:''; position:absolute; left:18px; top:38px; bottom:-2px; width:2px;
+  background:var(--border); transition:background .35s; z-index:0;
+}
+.flow-step:last-child::before { display:none; }
+.flow-step.done::before { background:linear-gradient(180deg,var(--accent),rgba(0,255,136,0.3)); box-shadow:0 0 8px rgba(0,255,136,0.3); }
+
+.flow-node {
+  width:38px; height:38px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  border:2px solid var(--border2); background:var(--panel);
+  font-family:'Bebas Neue',cursive; font-size:18px; color:var(--muted);
+  z-index:1; transition:all .3s; position:relative;
+}
+.flow-step.active .flow-node {
+  border-color:var(--accent); color:var(--accent);
+  box-shadow:0 0 0 5px rgba(0,255,136,0.07), 0 0 16px rgba(0,255,136,0.25);
+  animation:flowPulse 2s ease-in-out infinite;
+}
+.flow-step.done .flow-node { background:var(--accent); border-color:var(--accent); color:#000; box-shadow:0 0 14px rgba(0,255,136,0.4); }
+@keyframes flowPulse {
+  0%,100% { box-shadow:0 0 0 5px rgba(0,255,136,0.07), 0 0 16px rgba(0,255,136,0.2); }
+  50% { box-shadow:0 0 0 7px rgba(0,255,136,0.03), 0 0 22px rgba(0,255,136,0.35); }
+}
+
+.flow-body {
+  flex:1; background:var(--panel); border:1px solid var(--border);
+  border-radius:var(--radius); padding:16px 18px; margin-bottom:10px;
+  transition:all .3s; min-width:0;
+}
+.flow-step.active .flow-body { border-color:rgba(0,255,136,0.28); background:var(--panel2); }
+.flow-step.locked .flow-body { opacity:.35; filter:grayscale(.6); pointer-events:none; }
+.flow-step.done .flow-body { border-color:rgba(0,255,136,0.18); background:rgba(0,255,136,0.025); }
+
+.flow-head { display:flex; align-items:center; gap:10px; margin-bottom:5px; }
+.flow-title { font-size:14px; font-weight:600; color:var(--text); }
+.flow-step.done .flow-title { color:var(--accent); }
+.flow-status {
+  font-size:9px; letter-spacing:1.5px; padding:3px 10px; border-radius:12px;
+  text-transform:uppercase; margin-left:auto; white-space:nowrap;
+  border:1px solid transparent;
+}
+.flow-step.active .flow-status { color:var(--accent); background:rgba(0,255,136,0.08); border-color:rgba(0,255,136,0.2); }
+.flow-step.locked .flow-status { color:var(--muted); }
+.flow-step.done .flow-status { color:var(--accent); }
+.flow-desc { font-size:11px; color:var(--muted); line-height:1.6; margin-bottom:12px; }
+.flow-opts { display:flex; gap:8px; flex-wrap:wrap; }
+.flow-opt {
+  padding:9px 16px; border:1px solid var(--border); border-radius:20px;
+  font-size:12px; cursor:pointer; background:var(--panel2); color:var(--muted2);
+  transition:all .18s; font-family:'Noto Sans KR',sans-serif;
+}
+.flow-opt:hover { border-color:var(--border2); color:var(--text); }
+.flow-opt.on { background:rgba(0,255,136,0.12); border-color:rgba(0,255,136,0.5); color:var(--accent); box-shadow:0 0 12px rgba(0,255,136,0.12); }
+
 /* ── Progress ── */
 .progress-wrap { margin-bottom:20px; animation:fadeUp 0.4s ease 0.3s both; }
 .progress-header { display:flex; justify-content:space-between; margin-bottom:8px; }
@@ -922,71 +981,88 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 
   <div class="divider"></div>
 
-  <div class="sec">
-    <div class="sec-title">01 — 방향 확인</div>
-    <div class="check-item" id="c1" onclick="toggleCheck(this,1)">
-      <div class="check-box"><span class="check-icon">✓</span></div>
-      <div class="check-content">
-        <div class="check-title">1D 추세 방향 확인</div>
-        <div class="check-desc">일봉 기준 상승 추세 → 롱만 / 하락 추세 → 숏만<br>추세 불명확 시 패스</div>
-      </div>
-    </div>
-  </div>
+  <div class="flow">
 
-  <div class="sec">
-    <div class="sec-title">02 — 파동 구조 (하나 선택)</div>
-    <div class="check-item" id="c2" onclick="selectWave('abc')">
-      <div class="check-box"><span class="check-icon">✓</span></div>
-      <div class="check-content">
-        <div class="check-title">1H ABC 조정 완성</div>
-        <div class="check-desc">1시간봉에서 ABC 조정파동 완성<br>카운팅 불명확 시 패스</div>
-      </div>
-    </div>
-    <div style="text-align:center;font-size:10px;color:var(--muted);letter-spacing:2px;margin:4px 0">OR</div>
-    <div class="check-item" id="c2b" onclick="selectWave('tri')">
-      <div class="check-box"><span class="check-icon">✓</span></div>
-      <div class="check-content">
-        <div class="check-title">1H 삼각수렴 완성</div>
-        <div class="check-desc">1시간봉에서 삼각수렴 패턴 완성<br>수렴 미완성 시 패스</div>
-      </div>
-    </div>
-    <div class="check-item" id="c3" onclick="toggleCheck(this,3)">
-      <div class="check-box"><span class="check-icon">✓</span></div>
-      <div class="check-content">
-        <div class="check-title">파동 끝 확인 (하나 이상 충족)</div>
-        <div class="check-desc">RSI 다이버전스 완성 또는 삼각수렴 출현</div>
-        <div class="sub-options" onclick="event.stopPropagation()">
-          <button class="sub-btn" id="sb-rsi" onclick="toggleSub('sb-rsi',3)">📉 RSI 다이버전스</button>
-          <button class="sub-btn" id="sb-tri" onclick="toggleSub('sb-tri',3)">🔺 삼각수렴</button>
+    <!-- STEP 1 — 방향 확인 -->
+    <div class="flow-step" id="step-1">
+      <div class="flow-node">1</div>
+      <div class="flow-body">
+        <div class="flow-head">
+          <span class="flow-title">방향 확인</span>
+          <span class="flow-status">진행 중</span>
+        </div>
+        <div class="flow-desc">1D 추세 방향 확인 — 상승 추세 → 롱만 / 하락 추세 → 숏만 · 불명확 시 패스</div>
+        <div class="flow-opts">
+          <button class="flow-opt" onclick="toggleStepSingle(this,1)">1D 추세 방향 확인</button>
         </div>
       </div>
     </div>
-  </div>
 
-  <div class="sec">
-    <div class="sec-title">03 — 진입 트리거</div>
-    <div class="check-item" id="c4" onclick="toggleCheck(this,4)">
-      <div class="check-box"><span class="check-icon">✓</span></div>
-      <div class="check-content">
-        <div class="check-title">AB 추세선 이탈 확인</div>
-        <div class="check-desc">C파의 A→B 추세선 이탈 확인 후 진입<br>이탈 전 선진입 절대 금지</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="sec">
-    <div class="sec-title">04 — 리스크 관리</div>
-    <div class="check-item" id="c5" onclick="toggleCheck(this,5)">
-      <div class="check-box"><span class="check-icon">✓</span></div>
-      <div class="check-content">
-        <div class="check-title">손절 / 익절 / 손익비 설정 완료</div>
-        <div class="check-desc">
-          손절: C파 저점(롱) or 고점(숏) 가격으로 고정<br>
-          익절: 새 파동(임펄스 5파 or ABC) 끝<br>
-          손익비: 최소 1:2 이상 확인
+    <!-- STEP 2 — 패턴식별 -->
+    <div class="flow-step" id="step-2">
+      <div class="flow-node">2</div>
+      <div class="flow-body">
+        <div class="flow-head">
+          <span class="flow-title">패턴식별</span>
+          <span class="flow-status">대기</span>
+        </div>
+        <div class="flow-desc">1H 차트에서 현재 형성된 패턴 하나를 선택</div>
+        <div class="flow-opts">
+          <button class="flow-opt" onclick="pickPattern(this,'tri')">🔺 삼각수렴</button>
+          <button class="flow-opt" onclick="pickPattern(this,'abc')">🌊 ABC</button>
+          <button class="flow-opt" onclick="pickPattern(this,'impulse')">📈 임펄스</button>
+          <button class="flow-opt" onclick="pickPattern(this,'wedge')">📐 웻지</button>
         </div>
       </div>
     </div>
+
+    <!-- STEP 3 — 파동의 끝 -->
+    <div class="flow-step" id="step-3">
+      <div class="flow-node">3</div>
+      <div class="flow-body">
+        <div class="flow-head">
+          <span class="flow-title">파동의 끝</span>
+          <span class="flow-status">대기</span>
+        </div>
+        <div class="flow-desc">파동 종료 신호 (하나 이상 충족)</div>
+        <div class="flow-opts">
+          <button class="flow-opt" onclick="pickEnd(this,'tri')">🔺 삼각수렴</button>
+          <button class="flow-opt" onclick="pickEnd(this,'rsi')">📉 RSI 다이버전스</button>
+          <button class="flow-opt" onclick="pickEnd(this,'diag')">🔻 엔딩다이아고날</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 4 — 진입 트리거 -->
+    <div class="flow-step" id="step-4">
+      <div class="flow-node">4</div>
+      <div class="flow-body">
+        <div class="flow-head">
+          <span class="flow-title">진입 트리거</span>
+          <span class="flow-status">대기</span>
+        </div>
+        <div class="flow-desc">AB 추세선 이탈 확인 후 진입 · 이탈 전 선진입 절대 금지</div>
+        <div class="flow-opts">
+          <button class="flow-opt" onclick="toggleStepSingle(this,4)">AB 추세선 이탈 확인</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 5 — 리스크 관리 -->
+    <div class="flow-step" id="step-5">
+      <div class="flow-node">5</div>
+      <div class="flow-body">
+        <div class="flow-head">
+          <span class="flow-title">리스크 관리</span>
+          <span class="flow-status">대기</span>
+        </div>
+        <div class="flow-desc">손절: C파 저점(롱)/고점(숏) 고정 · 익절: 새 파동 끝 · 손익비 최소 1:2</div>
+        <div class="flow-opts">
+          <button class="flow-opt" onclick="toggleStepSingle(this,5)">손절 / 익절 / 손익비 설정 완료</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <div class="result default" id="result">
@@ -1318,7 +1394,8 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 <script>
 // ── State ──
 const cState = {1:false,2:false,3:false,4:false,5:false};
-const sState = {'sb-rsi':false,'sb-tri':false};
+let patternChoice = null;                         // step 2: 'tri'|'abc'|'impulse'|'wedge'
+const endState = {tri:false, rsi:false, diag:false}; // step 3 (multi)
 let formDir = null;
 let formPnl = null;
 let currentFilter = 'all';
@@ -1646,10 +1723,12 @@ function goPage(name) {
 }
 
 // ── Judge (GO / NO-GO) ──
+const PATTERN_LABELS = { tri:'삼각수렴', abc:'ABC', impulse:'임펄스', wedge:'웻지' };
+const END_LABELS = { tri:'삼각수렴', rsi:'RSI 다이버전스', diag:'엔딩다이아고날' };
 const JUDGE_CONDS = {
   1: '1D 추세 방향 확인',
-  2: '파동 구조 (ABC 조정 / 삼각수렴)',
-  3: '파동 끝 확인 (RSI 다이버전스 / 수렴)',
+  2: '패턴식별 (삼각수렴/ABC/임펄스/웻지)',
+  3: '파동의 끝 (삼각수렴/RSI 다이버전스/엔딩다이아고날)',
   4: 'AB 추세선 이탈 확인',
   5: '손절 / 익절 / 손익비 설정'
 };
@@ -1677,10 +1756,18 @@ function renderJudge() {
   // Condition checklist
   const listEl = document.getElementById('judge-cond-list');
   listEl.innerHTML = Object.entries(JUDGE_CONDS).map(([k, label]) => {
-    const ok = !!cState[parseInt(k)];
+    const n = parseInt(k);
+    const ok = !!cState[n];
+    let shown = label;
+    // 선택한 세부 항목을 라벨에 반영
+    if (n===2 && patternChoice) shown = '패턴식별 · ' + PATTERN_LABELS[patternChoice];
+    if (n===3 && ok) {
+      const picks = Object.keys(endState).filter(x=>endState[x]).map(x=>END_LABELS[x]);
+      if (picks.length) shown = '파동의 끝 · ' + picks.join(', ');
+    }
     return `<div class="judge-cond-row ${ok ? 'ok' : 'ng'}">
       <span class="judge-cond-dot"></span>
-      <span>${label}</span>
+      <span>${shown}</span>
       <span style="margin-left:auto;font-size:11px;opacity:.8">${ok ? '✓' : '—'}</span>
     </div>`;
   }).join('');
@@ -1801,37 +1888,77 @@ function updateWeekProgress() {
 }
 
 // ── Wave selector (ABC or 삼각수렴, pick one) ──
-let waveChoice = null;
-function selectWave(type) {
-  waveChoice = type;
-  const abc = document.getElementById('c2');
-  const tri = document.getElementById('c2b');
-  abc.classList.toggle('checked', type==='abc');
-  tri.classList.toggle('checked', type==='tri');
-  cState[2] = true;
-  updateResult();
+// ── Flow Checklist ──
+function stepUnlocked(n) {
+  for (let i=1; i<n; i++) if (!cState[i]) return false;
+  return true;
 }
 
-// ── Checklist ──
-function toggleCheck(el, num) {
-  addRipple(el);
-  cState[num] = !cState[num];
-  el.classList.toggle('checked', cState[num]);
-  if (num===3 && !cState[3]) {
-    sState['sb-rsi']=false; sState['sb-tri']=false;
-    document.getElementById('sb-rsi').classList.remove('active');
-    document.getElementById('sb-tri').classList.remove('active');
+function renderFlow() {
+  for (let n=1; n<=5; n++) {
+    const step = document.getElementById('step-'+n);
+    if (!step) continue;
+    step.classList.remove('active','done','locked');
+    const st = step.querySelector('.flow-status');
+    if (cState[n]) {
+      step.classList.add('done');
+      if (st) st.textContent = '완료';
+    } else if (stepUnlocked(n)) {
+      step.classList.add('active');
+      if (st) st.textContent = '진행 중';
+    } else {
+      step.classList.add('locked');
+      if (st) st.textContent = '대기';
+    }
   }
   updateResult();
 }
 
-function toggleSub(id, num) {
-  sState[id] = !sState[id];
-  document.getElementById(id).classList.toggle('active', sState[id]);
-  const any = sState['sb-rsi'] || sState['sb-tri'];
-  cState[num] = any;
-  document.getElementById('c'+num).classList.toggle('checked', any);
-  updateResult();
+// 이후 단계 초기화 (앞 단계를 해제하면 뒷 단계도 리셋)
+function resetFrom(n) {
+  for (let i=n; i<=5; i++) {
+    cState[i] = false;
+    const step = document.getElementById('step-'+i);
+    if (step) step.querySelectorAll('.flow-opt').forEach(b=>b.classList.remove('on'));
+  }
+  if (n <= 2) patternChoice = null;
+  if (n <= 3) { endState.tri=false; endState.rsi=false; endState.diag=false; }
+}
+
+// STEP 1 / 4 / 5 — 단일 확인
+function toggleStepSingle(el, num) {
+  if (!stepUnlocked(num)) return;
+  addRipple(el);
+  cState[num] = !cState[num];
+  el.classList.toggle('on', cState[num]);
+  if (!cState[num]) resetFrom(num+1);
+  renderFlow();
+}
+
+// STEP 2 — 패턴식별 (하나 선택)
+function pickPattern(el, type) {
+  if (!stepUnlocked(2)) return;
+  addRipple(el);
+  if (patternChoice === type) {
+    patternChoice = null; cState[2] = false;
+  } else {
+    patternChoice = type; cState[2] = true;
+  }
+  document.querySelectorAll('#step-2 .flow-opt').forEach(b=>b.classList.remove('on'));
+  if (patternChoice) el.classList.add('on');
+  if (!cState[2]) resetFrom(3);
+  renderFlow();
+}
+
+// STEP 3 — 파동의 끝 (하나 이상)
+function pickEnd(el, key) {
+  if (!stepUnlocked(3)) return;
+  addRipple(el);
+  endState[key] = !endState[key];
+  el.classList.toggle('on', endState[key]);
+  cState[3] = Object.values(endState).some(Boolean);
+  if (!cState[3]) resetFrom(4);
+  renderFlow();
 }
 
 function updateResult() {
@@ -1854,11 +1981,10 @@ function updateResult() {
 
 function resetChecks() {
   for (let k in cState) cState[k]=false;
-  for (let k in sState) sState[k]=false;
-  waveChoice = null;
-  document.querySelectorAll('.check-item').forEach(el=>el.classList.remove('checked'));
-  document.querySelectorAll('.sub-btn').forEach(el=>el.classList.remove('active'));
-  updateResult();
+  patternChoice = null;
+  endState.tri=false; endState.rsi=false; endState.diag=false;
+  document.querySelectorAll('.flow-opt').forEach(el=>el.classList.remove('on'));
+  renderFlow();
 }
 
 // ── Duration calculator ──
@@ -2221,6 +2347,9 @@ function showToast(msg) {
   t.textContent=msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2200);
 }
+
+// ── Init ──
+renderFlow();
 </script>
 </body>
 </html>
