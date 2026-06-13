@@ -941,10 +941,18 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     <div class="page-sub">월요일 — 방향 결정 → 진입 셋업 대기 → 기록</div>
   </div>
 
+  <!-- Week Navigator -->
+  <div class="cal-toolbar">
+    <button class="cal-nav-btn" onclick="weekShift(-1)">‹</button>
+    <div class="cal-month-label" id="wk-range-label" style="min-width:200px">—</div>
+    <button class="cal-nav-btn" onclick="weekShift(1)">›</button>
+    <button class="cal-today-btn" onclick="weekThis()">이번 주</button>
+  </div>
+
   <!-- Week Stats -->
   <div class="week-stats-row" id="weekStatsRow">
     <div class="week-stat-card">
-      <div class="week-stat-label">이번 주 매매</div>
+      <div class="week-stat-label">주간 매매</div>
       <div class="week-stat-val neu" id="wk-count">0</div>
     </div>
     <div class="week-stat-card">
@@ -1533,6 +1541,8 @@ let formDir = null;
 let formPnl = null;
 let currentFilter = 'all';
 let trades = [];
+let weekPlans = {};                 // { 'YYYY-Www': {num,seed,trend,analysis,reflect} }
+let weekAnchor = new Date();        // 주간플랜에서 보고있는 주 (그 주의 아무 날짜)
 let challengeStart = null;
 let riskPct = 3;
 let dailyLossLimit = null;
@@ -1650,7 +1660,11 @@ async function fbLoad() {
     if (snap.exists) {
       const d = snap.data();
       trades = d.trades || [];
-      applyWeekPlan(d.weekplan || {});
+      weekPlans = d.weekplans || {};
+      // 구버전 단일 weekplan → 현재 주차로 1회 마이그레이션
+      if (Object.keys(weekPlans).length === 0 && d.weekplan && (d.weekplan.analysis || d.weekplan.trend || d.weekplan.reflect || d.weekplan.num || d.weekplan.seed)) {
+        weekPlans[isoWeekKey(new Date())] = d.weekplan;
+      }
       challengeStart = (d.config && d.config.challengeStart) || null;
       riskPct = (d.config && d.config.riskPct) || 3;
       dailyLossLimit = (d.config && d.config.dailyLossLimit) || null;
@@ -1667,7 +1681,7 @@ async function fbSave() {
         const { chart, charts, ...rest } = t;   // 이미지는 로컬에만 보관
         return rest;
       }),
-      weekplan: getWeekPlanData(),
+      weekplans: weekPlans,
       config: { challengeStart, riskPct, dailyLossLimit },
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -1686,12 +1700,21 @@ function getWeekPlanData() {
 }
 
 function applyWeekPlan(p) {
-  if (!p) return;
-  if (p.num)      document.getElementById('wk-num').value      = p.num;
-  if (p.seed)     document.getElementById('wk-seed').value     = p.seed;
-  if (p.trend)    { weekTrend = p.trend; setTrend(p.trend); }
-  if (p.analysis) document.getElementById('wk-analysis').value = p.analysis;
-  if (p.reflect)  document.getElementById('wk-reflect').value  = p.reflect;
+  p = p || {};
+  const num = document.getElementById('wk-num');
+  const seed = document.getElementById('wk-seed');
+  const analysis = document.getElementById('wk-analysis');
+  const reflect = document.getElementById('wk-reflect');
+  if (num)      num.value      = p.num      || '';
+  if (seed)     seed.value     = p.seed     || '';
+  if (analysis) analysis.value = p.analysis || '';
+  if (reflect)  reflect.value  = p.reflect  || '';
+  // 추세 버튼은 저장 트리거 없이 직접 반영
+  weekTrend = p.trend || null;
+  ['long','short','wait'].forEach(x => {
+    const b = document.getElementById('tr-'+x);
+    if (b) b.classList.toggle('active', x === weekTrend);
+  });
 }
 
 // ── Auth ──
@@ -1780,9 +1803,9 @@ function saveChartLocally(id, base64arr) {
 function exportJSON() {
   const payload = {
     exportedAt: new Date().toISOString(),
-    version: 'ljh-journal-v5',
+    version: 'ljh-journal-v6',
     trades,                                   // charts 병합된 상태로 포함
-    weekplan: getWeekPlanData(),
+    weekplans: weekPlans,
     config: { challengeStart, riskPct, dailyLossLimit },
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -1841,7 +1864,11 @@ function importJSON(input) {
         if (imgs.length) chartMap[String(t.id)] = imgs;
       });
       try { localStorage.setItem('ljh-charts', JSON.stringify(chartMap)); } catch(err) {}
-      if (data.weekplan) applyWeekPlan(data.weekplan);
+      if (data.weekplans) {
+        weekPlans = data.weekplans;
+      } else if (data.weekplan) {
+        weekPlans = {}; weekPlans[isoWeekKey(new Date())] = data.weekplan;  // 구버전 백업 호환
+      }
       if (data.config) {
         challengeStart = data.config.challengeStart || null;
         riskPct = data.config.riskPct || 3;
@@ -1969,7 +1996,7 @@ function goPage(name) {
   const idx = {weekly:0,checklist:1,judge:2,entry:3,history:4,disc:5,calendar:6}[name];
   document.querySelectorAll('.nav-tab')[idx].classList.add('active');
   if (name==='history') renderHistory();
-  if (name==='weekly') updateWeekProgress();
+  if (name==='weekly') loadWeekPlan();
   if (name==='disc') renderDiscipline();
   if (name==='judge') renderJudge();
   if (name==='calendar') renderCalendar();
@@ -2098,32 +2125,58 @@ function setTrend(t) {
   saveWeekPlan();
 }
 
+// 오늘 기준 이번 주 범위 (90일 챌린지 통계용)
+function getThisWeekRange() {
+  const now = new Date();
+  const day = now.getDay();
+  const mon = new Date(now); mon.setDate(now.getDate() - (day === 0 ? 6 : day - 1)); mon.setHours(0,0,0,0);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6); sun.setHours(23,59,59,999);
+  return { mon, sun };
+}
+
+// 현재 보고있는 주의 키
+function curWeekKey() { return isoWeekKey(weekAnchor); }
+
+// 주의 월~일 범위 (로컬)
+function anchorWeekRange() {
+  const a = weekAnchor, day = a.getDay();
+  const mon = new Date(a); mon.setDate(a.getDate() - (day === 0 ? 6 : day - 1)); mon.setHours(0,0,0,0);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6); sun.setHours(23,59,59,999);
+  return { mon, sun };
+}
+
+function updateWeekRangeLabel() {
+  const { mon, sun } = anchorWeekRange();
+  const f = d => `${d.getMonth()+1}/${d.getDate()}`;
+  const wk = parseInt(curWeekKey().split('-W')[1], 10);
+  const el = document.getElementById('wk-range-label');
+  if (el) el.textContent = `${mon.getFullYear()}년 ${wk}주차 (${f(mon)}~${f(sun)})`;
+}
+
 function saveWeekPlan() {
+  weekPlans[curWeekKey()] = getWeekPlanData();
   if (currentUser) fbSave();
 }
 
 function loadWeekPlan() {
-  // applyWeekPlan은 fbLoad 에서 호출됨 — 여기선 no-op
+  applyWeekPlan(weekPlans[curWeekKey()] || {});
+  updateWeekRangeLabel();
+  updateWeekProgress();
 }
 
-function getThisWeekRange() {
-  const now = new Date();
-  const day = now.getDay();
-  const mon = new Date(now);
-  mon.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
-  mon.setHours(0,0,0,0);
-  const sun = new Date(mon);
-  sun.setDate(mon.getDate() + 6);
-  sun.setHours(23,59,59,999);
-  return { mon, sun };
+function weekShift(delta) {
+  weekAnchor = new Date(weekAnchor.getFullYear(), weekAnchor.getMonth(), weekAnchor.getDate() + delta*7);
+  loadWeekPlan();
+}
+function weekThis() { weekAnchor = new Date(); loadWeekPlan(); }
+
+// 매매가 현재 보고있는 주에 속하는지 (ISO 주 기준)
+function tradeInCurWeek(t) {
+  return t.date && isoWeekKey(new Date(t.date + 'T00:00:00')) === curWeekKey();
 }
 
 function updateWeekProgress() {
-  const { mon, sun } = getThisWeekRange();
-  const weekTrades = trades.filter(t => {
-    const d = new Date(t.date);
-    return d >= mon && d <= sun;
-  });
+  const weekTrades = trades.filter(t => t.executed !== false && tradeInCurWeek(t));
   const weekPnl = weekTrades.reduce((s,t) => s + (parseFloat(t.pnl)||0), 0);
   const seed = parseFloat(document.getElementById('wk-seed')?.value || 0);
   const pct = seed > 0 ? (weekPnl / seed * 100) : 0;
@@ -2699,6 +2752,18 @@ function isoWeek(d) {
   const yStart = new Date(Date.UTC(dt.getUTCFullYear(), 0, 1));
   return Math.ceil(((dt - yStart) / 86400000 + 1) / 7);
 }
+// 주 키 'YYYY-Www' (ISO week-year 기준)
+function isoWeekKey(d) {
+  const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = dt.getUTCDay() || 7;
+  dt.setUTCDate(dt.getUTCDate() + 4 - day);   // 그 주의 목요일 → ISO week-year
+  return dt.getUTCFullYear() + '-W' + String(isoWeek(d)).padStart(2, '0');
+}
+// 캘린더 주차/주합계 클릭 → 해당 주 주간플랜으로 이동
+function gotoWeekPlan(dateStr) {
+  weekAnchor = new Date(dateStr + 'T00:00:00');
+  goPage('weekly');
+}
 // 챌린지 진행일 (1~90), 범위 밖이면 null
 function challengeDayOf(dateStr) {
   if (!challengeStart) return null;
@@ -2717,10 +2782,10 @@ function renderCalendar() {
   const year = calCursor.getFullYear(), month = calCursor.getMonth();
   label.textContent = `${year}년 ${month+1}월`;
 
-  // 헤더 (주차 + 요일 + 주합계)
-  const dows = ['일','월','화','수','목','금','토'];
+  // 헤더 (주차 + 요일[월~일] + 주합계)
+  const dows = ['월','화','수','목','금','토','일'];
   head.innerHTML = `<div>주</div>` +
-    dows.map((d,i)=>`<div class="${i===0?'ch-sun':i===6?'ch-sat':''}">${d}</div>`).join('') +
+    dows.map((d,i)=>`<div class="${i===6?'ch-sun':i===5?'ch-sat':''}">${d}</div>`).join('') +
     `<div>주합계</div>`;
 
   // 날짜별 매매 집계
@@ -2730,10 +2795,10 @@ function renderCalendar() {
     (byDate[t.date] = byDate[t.date] || []).push(t);
   });
 
-  // 달력 시작(그 달 1일이 속한 주의 일요일)
+  // 달력 시작(그 달 1일이 속한 주의 월요일)
   const first = new Date(year, month, 1);
   const gridStart = new Date(first);
-  gridStart.setDate(first.getDate() - first.getDay());
+  gridStart.setDate(first.getDate() - ((first.getDay() + 6) % 7));
   const todayStr = ymd(new Date());
 
   let monthPnl = 0, monthTrades = 0, monthWins = 0;
@@ -2750,7 +2815,16 @@ function renderCalendar() {
       if (!hasThisMonth) break;
     }
     let weekPnl = 0, weekCnt = 0;
-    let cells = `<div class="cal-wk">${isoWeek(cur)}</div>`;
+    const rowMon = new Date(cur);                 // 행의 월요일
+    const rowMonStr = ymd(rowMon);
+    const rowKey = isoWeekKey(rowMon);
+    const plan = weekPlans[rowKey];
+    const trendGlyph = plan && plan.trend
+      ? (plan.trend==='long' ? '<span style="color:var(--accent)">▲</span>'
+        : plan.trend==='short' ? '<span style="color:var(--accent2)">▼</span>'
+        : '<span style="color:var(--muted)">⏸</span>')
+      : '';
+    let cells = `<div class="cal-wk" style="flex-direction:column;gap:2px;cursor:pointer" onclick="gotoWeekPlan('${rowMonStr}')" title="${rowKey} 주간플랜"><span>${isoWeek(cur)}</span>${trendGlyph}</div>`;
     for (let i = 0; i < 7; i++) {
       const dStr = ymd(cur);
       const inMonth = cur.getMonth() === month;
@@ -2784,7 +2858,7 @@ function renderCalendar() {
       cur.setDate(cur.getDate() + 1);
     }
     const wtCls = weekPnl > 0 ? 'pos' : weekPnl < 0 ? 'neg' : 'neu';
-    cells += `<div class="cal-wktot ${wtCls}">${weekCnt?(weekPnl>0?'+':'')+Math.round(weekPnl):'—'}<span class="wt-cnt">${weekCnt?weekCnt+'건':''}</span></div>`;
+    cells += `<div class="cal-wktot ${wtCls}" style="cursor:pointer" onclick="gotoWeekPlan('${rowMonStr}')">${weekCnt?(weekPnl>0?'+':'')+Math.round(weekPnl):'—'}<span class="wt-cnt">${weekCnt?weekCnt+'건':''}</span></div>`;
     html += `<div class="cal-grid">${cells}</div>`;
   }
   body.innerHTML = html;
