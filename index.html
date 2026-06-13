@@ -561,6 +561,9 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   text-transform:uppercase; margin-top:8px;
 }
 .export-btn:hover { border-color:var(--accent4); color:var(--accent4); }
+.backup-box { margin-top:16px; padding:14px; border:1px solid var(--border); border-radius:12px; background:var(--panel2); }
+.backup-title { font-size:11px; letter-spacing:2px; color:var(--muted2); text-transform:uppercase; margin-bottom:4px; }
+.backup-desc { font-size:11px; color:var(--muted); line-height:1.5; margin-bottom:10px; }
 
 /* ── Weekly Plan ── */
 .trend-row { display:flex; gap:10px; margin-top:10px; }
@@ -958,7 +961,15 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   </div>
 
   <button class="save-week-btn" onclick="saveWeekPlan(); showToast('✓ 주간 플랜 저장')">↑ 저장</button>
-  <button class="export-btn" onclick="exportJSON()">⬇ 전체 데이터 JSON 내보내기 (NAS 이전용)</button>
+
+  <div class="backup-box">
+    <div class="backup-title">데이터 백업 & 복구</div>
+    <div class="backup-desc">전체 매매기록·차트·설정을 파일로 저장하고, 필요 시 그대로 되살립니다.</div>
+    <button class="export-btn" onclick="exportJSON()">⬇ 전체 백업 (JSON · 차트 포함)</button>
+    <button class="export-btn" onclick="exportCSV()">⬇ 매매기록 CSV (엑셀 분석용)</button>
+    <button class="export-btn" onclick="document.getElementById('importFile').click()">⬆ 백업 파일로 복구 (JSON)</button>
+    <input type="file" id="importFile" accept="application/json,.json" style="display:none" onchange="importJSON(this)">
+  </div>
 
 </div>
 </div>
@@ -1602,25 +1613,101 @@ function saveChartLocally(id, base64arr) {
   } catch(e) {}
 }
 
-// ── JSON Export (NAS 이전용) ──
+// ── JSON Export (전체 백업: 매매기록 + 차트 + 설정) ──
 function exportJSON() {
   const payload = {
     exportedAt: new Date().toISOString(),
-    version: 'ljh-journal-v4',
-    trades,
+    version: 'ljh-journal-v5',
+    trades,                                   // charts 병합된 상태로 포함
     weekplan: getWeekPlanData(),
+    config: { challengeStart, riskPct, dailyLossLimit },
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `ljh-journal-${new Date().toISOString().split('T')[0]}.json`;
   a.click();
-  showToast('✓ JSON 내보내기 완료');
+  showToast('✓ 전체 백업 완료');
+}
+
+// ── CSV Export (엑셀/시트 분석용) ──
+function exportCSV() {
+  if (!trades.length) { showToast('⚠️ 내보낼 기록이 없습니다'); return; }
+  const cols = [
+    ['date','날짜'],['symbol','종목'],['dir','방향'],['type','유형'],['lev','배수'],
+    ['entry','진입가'],['entryTime','진입시각'],['exit','청산가'],['exitTime','청산시각'],
+    ['duration','보유시간'],['seed','투입시드'],['pnl','손익'],['result','결과'],
+    ['score','체크점수'],['goNogo','GO/NOGO'],['discScore','규율점수'],
+    ['basis','진입근거'],['reflect','반성'],['psych','심리'],
+  ];
+  const esc = v => {
+    const s = (v===null||v===undefined) ? '' : String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+  };
+  const header = cols.map(c => c[1]).join(',');
+  const rows = trades.map(t => cols.map(c => esc(t[c[0]])).join(','));
+  const csv = '﻿' + [header, ...rows].join('\n');   // BOM: 엑셀 한글 깨짐 방지
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ljh-trades-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  showToast('✓ CSV 내보내기 완료');
+}
+
+// ── JSON Import (백업 파일로 복구) ──
+function importJSON(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data || !Array.isArray(data.trades)) {
+        showToast('⚠️ 올바른 백업 파일이 아닙니다'); input.value=''; return;
+      }
+      const cur = trades.length;
+      if (!confirm(`복구하면 현재 매매기록 ${cur}건이 백업본 ${data.trades.length}건으로 완전히 대체됩니다.\n계속할까요?`)) {
+        input.value=''; return;
+      }
+      trades = data.trades;
+      // 차트를 localStorage로 복원
+      try {
+        const map = {};
+        trades.forEach(t => {
+          const imgs = (t.charts && t.charts.length) ? t.charts : (t.chart ? [t.chart] : []);
+          if (imgs.length) map[t.id] = imgs;
+        });
+        localStorage.setItem('ljh-charts', JSON.stringify(map));
+      } catch(err) {}
+      if (data.weekplan) applyWeekPlan(data.weekplan);
+      if (data.config) {
+        challengeStart = data.config.challengeStart || null;
+        riskPct = data.config.riskPct || 3;
+        dailyLossLimit = data.config.dailyLossLimit || null;
+        updateRuleLabels();
+      }
+      mergeLocalCharts();
+      await fbSave();
+      renderHistory();
+      loadWeekPlan();
+      renderDiscipline();
+      showToast(`✓ 복구 완료 (${trades.length}건)`);
+    } catch(err) {
+      showToast('⚠️ 복구 실패: 파일을 읽을 수 없습니다');
+    }
+    input.value='';
+  };
+  reader.readAsText(file);
 }
 
 // ── Init (auth 전에도 DOM 준비) ──
 window.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+  const el = document.getElementById('f-entry-dt');
+  if (el) {
+    const now = new Date();
+    el.value = new Date(now.getTime() - now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  }
 });
 
 // ── Chart image state ──
