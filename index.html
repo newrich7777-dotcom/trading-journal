@@ -1036,6 +1036,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
           <div class="flow-sub-label" id="entry-sub-label"></div>
           <div class="flow-opts" id="entry-sub-opts"></div>
         </div>
+        <div class="flow-sub" id="waveend-sub" style="display:none;">
+          <div class="flow-sub-label">파동끝 확인 (하나 이상)</div>
+          <div class="flow-opts" id="waveend-opts"></div>
+        </div>
       </div>
     </div>
 
@@ -1388,6 +1392,7 @@ const cState = {1:false,2:false,3:false,4:false};
 let patternChoice = null;                         // step 2: 'tri'|'abc'|'impulse'|'wedge'
 let entryMode = null;                              // step 3: 'break'|'limit'
 let entryChoice = null;                            // step 3 sub option
+const waveEndState = {rsi:false, tri:false, diag:false}; // step 3 지정가 파동끝 확인 (multi)
 let formDir = null;
 let formPnl = null;
 let currentFilter = 'all';
@@ -1722,6 +1727,7 @@ const ENTRY_SUB = {
   limit: { abcend:'ABC 종료', wedgeend:'웻지 종료', impulseend:'임펄스 종료' }
 };
 const ENTRY_SUB_LABELS = { trisbreak:'삼각수렴 돌파', abcend:'ABC 종료', wedgeend:'웻지 종료', impulseend:'임펄스 종료' };
+const WAVEEND_LABELS = { rsi:'RSI 다이버전스', tri:'삼각수렴', diag:'엔딩다이아고날' };
 const JUDGE_CONDS = {
   1: '방향 확인 (1D 추세)',
   2: '패턴식별 (삼각수렴/ABC/임펄스/웻지)',
@@ -1759,6 +1765,10 @@ function renderJudge() {
     if (n===2 && patternChoice) shown = '패턴식별 · ' + PATTERN_LABELS[patternChoice];
     if (n===3 && ok && entryMode && entryChoice) {
       shown = '진입 결정 · ' + ENTRY_MODE_LABELS[entryMode] + ' (' + ENTRY_SUB_LABELS[entryChoice] + ')';
+      if (entryMode === 'limit') {
+        const w = Object.keys(waveEndState).filter(x=>waveEndState[x]).map(x=>WAVEEND_LABELS[x]);
+        if (w.length) shown += ' · 파동끝 ' + w.join(', ');
+      }
     }
     return `<div class="judge-cond-row ${ok ? 'ok' : 'ng'}">
       <span class="judge-cond-dot"></span>
@@ -1917,7 +1927,11 @@ function resetFrom(n) {
     if (step) step.querySelectorAll('.flow-opt').forEach(b=>b.classList.remove('on'));
   }
   if (n <= 2) patternChoice = null;
-  if (n <= 3) { entryMode = null; entryChoice = null; renderEntrySub(); }
+  if (n <= 3) {
+    entryMode = null; entryChoice = null;
+    waveEndState.rsi = waveEndState.tri = waveEndState.diag = false;
+    renderEntrySub();
+  }
 }
 
 // STEP 1 / 4 / 5 — 단일 확인
@@ -1946,16 +1960,21 @@ function pickPattern(el, type) {
 }
 
 // STEP 3 — 진입 결정 (돌파매매 / 지정가매매 중 하나 → 근거 선택)
+function computeStep3() {
+  if (entryMode === 'break') return !!entryChoice;
+  if (entryMode === 'limit') return !!entryChoice && Object.values(waveEndState).some(Boolean);
+  return false;
+}
+
 function pickEntryMode(el, mode) {
   if (!stepUnlocked(3)) return;
   addRipple(el);
-  if (entryMode === mode) {
-    entryMode = null; entryChoice = null; cState[3] = false;
-  } else {
-    entryMode = mode; entryChoice = null; cState[3] = false;
-  }
+  entryChoice = null;
+  waveEndState.rsi = waveEndState.tri = waveEndState.diag = false;
+  entryMode = (entryMode === mode) ? null : mode;
   document.querySelectorAll('#step-3 .mode-opt').forEach(b=>b.classList.remove('on'));
   if (entryMode) el.classList.add('on');
+  cState[3] = computeStep3();
   renderEntrySub();
   if (!cState[3]) resetFrom(4);
   renderFlow();
@@ -1965,23 +1984,49 @@ function renderEntrySub() {
   const sub = document.getElementById('entry-sub');
   const opts = document.getElementById('entry-sub-opts');
   const label = document.getElementById('entry-sub-label');
+  const wsub = document.getElementById('waveend-sub');
+  const wopts = document.getElementById('waveend-opts');
   if (!sub || !opts || !label) return;
-  if (!entryMode) { sub.style.display='none'; opts.innerHTML=''; return; }
+  if (!entryMode) {
+    sub.style.display='none'; opts.innerHTML='';
+    if (wsub) { wsub.style.display='none'; wopts.innerHTML=''; }
+    return;
+  }
   sub.style.display='block';
   label.textContent = ENTRY_MODE_LABELS[entryMode] + ' 진입 근거 선택';
   const subs = ENTRY_SUB[entryMode];
   opts.innerHTML = Object.entries(subs).map(([k,v]) =>
     `<button class="flow-opt ${entryChoice===k?'on':''}" onclick="pickEntryChoice(this,'${k}')">${v}</button>`
   ).join('');
+  // 지정가매매: 근거 선택 후 파동끝 확인 표시
+  if (wsub && wopts) {
+    if (entryMode === 'limit' && entryChoice) {
+      wsub.style.display='block';
+      wopts.innerHTML = Object.entries(WAVEEND_LABELS).map(([k,v]) =>
+        `<button class="flow-opt ${waveEndState[k]?'on':''}" onclick="pickWaveEnd(this,'${k}')">${v}</button>`
+      ).join('');
+    } else {
+      wsub.style.display='none'; wopts.innerHTML='';
+    }
+  }
 }
 
 function pickEntryChoice(el, key) {
   if (!stepUnlocked(3)) return;
   addRipple(el);
-  if (entryChoice === key) { entryChoice = null; cState[3] = false; }
-  else { entryChoice = key; cState[3] = true; }
-  document.querySelectorAll('#entry-sub-opts .flow-opt').forEach(b=>b.classList.remove('on'));
-  if (entryChoice) el.classList.add('on');
+  entryChoice = (entryChoice === key) ? null : key;
+  cState[3] = computeStep3();
+  renderEntrySub();
+  if (!cState[3]) resetFrom(4);
+  renderFlow();
+}
+
+function pickWaveEnd(el, key) {
+  if (!stepUnlocked(3)) return;
+  addRipple(el);
+  waveEndState[key] = !waveEndState[key];
+  el.classList.toggle('on', waveEndState[key]);
+  cState[3] = computeStep3();
   if (!cState[3]) resetFrom(4);
   renderFlow();
 }
@@ -2008,6 +2053,7 @@ function resetChecks() {
   for (let k in cState) cState[k]=false;
   patternChoice = null;
   entryMode = null; entryChoice = null;
+  waveEndState.rsi = waveEndState.tri = waveEndState.diag = false;
   renderEntrySub();
   document.querySelectorAll('.flow-opt').forEach(el=>el.classList.remove('on'));
   renderFlow();
